@@ -1,3 +1,4 @@
-git remote add origin https://github.com/yfngary/Alfred.git
-git branch -M main
-git push -u origin main
+node_modules/
+.env
+dist/
+*.log
