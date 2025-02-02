@@ -9,6 +9,8 @@ export default function RegistrationForm() {
     profilePicture: null,
   });
   const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -26,22 +28,50 @@ export default function RegistrationForm() {
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email))
       tempErrors.email = "Invalid email format";
     if (!formData.password || formData.password.length < 8)
-      tempErrors.password = "Password must be at least 8 characters";
+      tempErrors.password = "Password must be at least 8 characters, include 1 uppercase letter, and 1 special character";
+    else if (!/[A-Z]/.test(formData.password))
+      tempErrors.password = "Password must contain at least 1 uppercase letter";
+    else if (!/[!@#$%^&*(),.?":{}|<>]/.test(formData.password))
+      tempErrors.password = "Password must contain at least 1 special character";
     setErrors(tempErrors);
     return Object.keys(tempErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (validate()) {
-      console.log("User Data Submitted:", formData);
-      alert("Registration Successful");
+      setLoading(true);
+      setMessage("");
+      
+      const formDataToSend = new FormData();
+      Object.keys(formData).forEach((key) => {
+        formDataToSend.append(key, formData[key]);
+      });
+      
+      try {
+        const response = await fetch("http://localhost:5000/api/register", {
+          method: "POST",
+          body: formDataToSend,
+        });
+        
+        const result = await response.json();
+        if (response.ok) {
+          setMessage("Registration successful!");
+        } else {
+          setMessage(result.error || "Registration failed.");
+        }
+      } catch (error) {
+        setMessage("Error connecting to the server.");
+      }
+      
+      setLoading(false);
     }
   };
 
   return (
     <div className="max-w-md mx-auto mt-10 p-6 bg-white shadow-lg rounded-lg">
       <h2 className="text-xl font-bold mb-4">User Registration</h2>
+      {message && <p className="text-center text-sm text-red-500">{message}</p>}
       <form onSubmit={handleSubmit} className="space-y-4">
         <input
           type="text"
@@ -92,8 +122,9 @@ export default function RegistrationForm() {
         <button
           type="submit"
           className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
+          disabled={loading}
         >
-          Register
+          {loading ? "Registering..." : "Register"}
         </button>
       </form>
     </div>
