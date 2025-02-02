@@ -1,7 +1,13 @@
 import React from "react";
+import RegistrationForm from "./components/RegistrationForm";
 
 function App() {
-  return <h1>Hello, React!</h1>;
+  return (
+    <div className="App">
+      <h1>Welcome to Alfred App</h1>
+      <RegistrationForm />
+    </div>
+  );
 }
 
 export default App;
