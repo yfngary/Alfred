@@ -7,14 +7,16 @@ export default function RegistrationForm() {
     password: "",
     phone: "",
     profilePicture: null,
+    agreeToTerms: false,
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [isRegistered, setIsRegistered] = useState(false);
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
   };
 
   const handleFileChange = (e) => {
@@ -33,6 +35,7 @@ export default function RegistrationForm() {
       tempErrors.password = "Password must contain at least 1 uppercase letter";
     else if (!/[!@#$%^&*(),.?":{}|<>]/.test(formData.password))
       tempErrors.password = "Password must contain at least 1 special character";
+    if (!formData.agreeToTerms) tempErrors.agreeToTerms = "You must agree to the Terms of Service and Privacy Policy";
     setErrors(tempErrors);
     return Object.keys(tempErrors).length === 0;
   };
@@ -49,16 +52,21 @@ export default function RegistrationForm() {
       });
       
       try {
-        const response = await fetch("http://localhost:5000/api/register", {
+        const response = await fetch("http://localhost:5001/api/register", {
           method: "POST",
           body: formDataToSend,
         });
         
         const result = await response.json();
+        console.log("Server Response:", result);
+        
         if (response.ok) {
-          setMessage("Registration successful!");
+          setIsRegistered(true);
         } else {
-          setMessage(result.error || "Registration failed.");
+          setMessage(result.error?.toString() || "Registration failed.");
+          if (result.error === "Email already in use") {
+            setErrors((prev) => ({ ...prev, email: "This email is already registered." }));
+          }
         }
       } catch (error) {
         setMessage("Error connecting to the server.");
@@ -67,6 +75,16 @@ export default function RegistrationForm() {
       setLoading(false);
     }
   };
+
+  if (isRegistered) {
+    return (
+      <div className="max-w-md mx-auto mt-10 p-6 bg-white shadow-lg rounded-lg text-center">
+        <h2 className="text-xl font-bold mb-4">Registration Successful!</h2>
+        <p className="mb-4">Your account has been created successfully.</p>
+        <p className="mb-4">You can now <a href="/login" className="text-blue-500">log in</a> using your email and password.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-md mx-auto mt-10 p-6 bg-white shadow-lg rounded-lg">
@@ -118,6 +136,20 @@ export default function RegistrationForm() {
           onChange={handleFileChange}
           className="w-full p-2 border rounded"
         />
+
+        <div className="flex items-center">
+          <input
+            type="checkbox"
+            name="agreeToTerms"
+            checked={formData.agreeToTerms}
+            onChange={handleChange}
+            className="mr-2"
+          />
+          <label className="text-sm">
+            I agree to the <a href="#" className="text-blue-500">Terms of Service</a> and <a href="#" className="text-blue-500">Privacy Policy</a>
+          </label>
+        </div>
+        {errors.agreeToTerms && <p className="text-red-500 text-sm">{errors.agreeToTerms}</p>}
 
         <button
           type="submit"
