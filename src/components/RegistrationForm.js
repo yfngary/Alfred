@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Link } from 'react-router-dom';
 
 export default function RegistrationForm() {
   const [formData, setFormData] = useState({
@@ -81,13 +82,14 @@ export default function RegistrationForm() {
       <div className="max-w-md mx-auto mt-10 p-6 bg-white shadow-lg rounded-lg text-center">
         <h2 className="text-xl font-bold mb-4">Registration Successful!</h2>
         <p className="mb-4">Your account has been created successfully.</p>
-        <p className="mb-4">You can now <a href="/login" className="text-blue-500">log in</a> using your email and password.</p>
+        <p className="mb-4">You can now <Link to="/login">login</Link> using your email and password.</p>
       </div>
     );
   }
 
   return (
     <div className="max-w-md mx-auto mt-10 p-6 bg-white shadow-lg rounded-lg">
+      <h1>Welcome to Alfred App</h1>
       <h2 className="text-xl font-bold mb-4">User Registration</h2>
       {message && <p className="text-center text-sm text-red-500">{message}</p>}
       <form onSubmit={handleSubmit} className="space-y-4">
