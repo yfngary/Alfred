@@ -38,9 +38,11 @@ export default function LoginPage() {
         console.log("Server Response:", result);
         
         if (response.ok) {
+          localStorage.setItem("user", JSON.stringify(result.user));
+          localStorage.setItem("token", result.token); // Store the token separately
           setMessage("Login successful! Redirecting...");
           setTimeout(() => {
-            window.location.href = "/dashboard"; // Redirect after login
+            window.location.href = "/createTrip"; // Redirect to trip creation page
           }, 2000);
         } else {
           setMessage(result.error?.toString() || "Login failed.");
