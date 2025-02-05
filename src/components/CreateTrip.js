@@ -165,7 +165,7 @@ export default function CreateTrip() {
       setMessage("");
 
       try {
-        const response = await fetch("http://localhost:5000/api/trips", {
+        const response = await fetch("http://localhost:5001/api/trips", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
