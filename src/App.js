@@ -1,23 +1,44 @@
 // src/App.js
-import React from 'react';
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
-import RegistrationForm from './components/RegistrationForm';
-import HomePage from './components/HomePage'; // Assuming you have a home page
-import LoginPage from './components/LoginPage';
-import CreateTrip from './components/CreateTrip';
+import React from "react";
+import {
+  BrowserRouter as Router,
+  Route,
+  Routes,
+  useLocation,
+} from "react-router-dom";
+import RegistrationForm from "./components/RegistrationForm";
+import HomePage from "./components/HomePage"; // Assuming you have a home page
+import LoginPage from "./components/LoginPage";
+import CreateTrip from "./components/CreateTrip";
+import Dashboard from "./components/Dashboard";
+import NavBar from "./components/NavBar";
 
-const App = () => {
-    return (
-        <Router>
-            <Routes>
-                <Route path="/register" element={<RegistrationForm />} />
-                <Route path="/createTrip" element={<CreateTrip />} />
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/" element={<HomePage />} />
-                
-            </Routes>
-        </Router>
-    );
-};
+function Layout() {
+  const location = useLocation();
+  const hideNavOnRoutes = ["/login", "/register", "/"]; // Routes where NavBar should be hidden
+
+  return (
+    <>
+      {!hideNavOnRoutes.includes(location.pathname) && <NavBar />}
+      <div className="p-6">
+        <Routes>
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/createTrip" element={<CreateTrip />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegistrationForm />} />
+          <Route path="/" element={<HomePage />} />
+        </Routes>
+      </div>
+    </>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+      <Layout />
+    </Router>
+  );
+}
 
 export default App;

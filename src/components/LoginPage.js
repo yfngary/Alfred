@@ -42,7 +42,7 @@ export default function LoginPage() {
           localStorage.setItem("token", result.token); // Store the token separately
           setMessage("Login successful! Redirecting...");
           setTimeout(() => {
-            window.location.href = "/createTrip"; // Redirect to trip creation page
+            window.location.href = "/dashboard"; // Redirect to the dashboard page
           }, 2000);
         } else {
           setMessage(result.error?.toString() || "Login failed.");
@@ -54,6 +54,7 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="max-w-md mx-auto mt-10 p-6 bg-white shadow-lg rounded-lg">
