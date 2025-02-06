@@ -15,15 +15,6 @@ export default function CreateTrip() {
     endDate: null,
     notes: "",
     lodgings: [],
-  });
-
-  const [guestFormData, setGuestFormData] = useState({
-    tripName: "",
-    destination: "",
-    startDate: null,
-    endDate: null,
-    notes: "",
-    lodgings: [],
     adults: 1,
     children: 0,
     guests: [],
@@ -32,12 +23,12 @@ export default function CreateTrip() {
   // Handle changes for adults & children count
   const handleGuestCountChange = (e) => {
     const { name, value } = e.target;
-    setGuestFormData((prev) => ({ ...prev, [name]: parseInt(value, 10) || 0 }));
+    setFormData((prev) => ({ ...prev, [name]: parseInt(value, 10) || 0 }));
   };
 
   // Add a new guest entry
   const addGuest = () => {
-    setGuestFormData((prev) => ({
+    setFormData((prev) => ({
       ...prev,
       guests: [...prev.guests, { name: "", email: "", phone: "" }],
     }));
@@ -45,7 +36,7 @@ export default function CreateTrip() {
 
   // Remove a guest entry
   const removeGuest = (index) => {
-    setGuestFormData((prev) => ({
+    setFormData((prev) => ({
       ...prev,
       guests: prev.guests.filter((_, i) => i !== index),
     }));
@@ -53,10 +44,10 @@ export default function CreateTrip() {
 
   // Update guest information
   const updateGuest = (index, field, value) => {
-    const updatedGuests = guestFormData.guests.map((guest, i) =>
+    const updatedGuests = formData.guests.map((guest, i) =>
       i === index ? { ...guest, [field]: value } : guest
     );
-    setGuestFormData((prev) => ({ ...prev, guests: updatedGuests }));
+    setFormData((prev) => ({ ...prev, guests: updatedGuests }));
   };
 
   const [errors, setErrors] = useState({});
@@ -190,6 +181,7 @@ export default function CreateTrip() {
             endDate: null,
             notes: "",
             lodgings: [],
+            guests: []
           });
         } else {
           setMessage(result.error?.toString() || "Failed to create trip.");
@@ -319,7 +311,7 @@ export default function CreateTrip() {
                 type="number"
                 name="adults"
                 min="1"
-                value={guestFormData.adults}
+                value={formData.adults}
                 onChange={handleGuestCountChange}
                 className="w-full p-2 border rounded"
               />
@@ -330,7 +322,7 @@ export default function CreateTrip() {
                 type="number"
                 name="children"
                 min="0"
-                value={guestFormData.children}
+                value={formData.children}
                 onChange={handleGuestCountChange}
                 className="w-full p-2 border rounded"
               />
@@ -339,7 +331,7 @@ export default function CreateTrip() {
 
           {/* Guest List */}
           <h3 className="text-lg font-semibold mt-4">Guests</h3>
-          {guestFormData.guests.map((guest, index) => (
+          {formData.guests.map((guest, index) => (
             <div key={index} className="border p-2 rounded mb-2">
               <input
                 type="text"
