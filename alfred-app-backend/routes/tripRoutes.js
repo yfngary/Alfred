@@ -158,4 +158,32 @@ router.delete("/:tripId/guests/:guestId", authMiddleware, async (req, res) => {
   }
 });
 
+router.put("/trips/:tripId/lodging/:lodgingId", authMiddleware, async (req, res) => {
+  try {
+    console.log("🛠 Received update request:", req.params, req.body); // Debugging
+
+    const { address, checkIn, checkOut } = req.body;
+    const trip = await Trip.findById(req.params.tripId);
+
+    if (!trip || trip.userId.toString() !== req.user.id) {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+
+    const lodging = trip.lodgings.id(req.params.lodgingId);
+    if (!lodging) {
+      return res.status(404).json({ error: "Lodging not found" });
+    }
+
+    lodging.address = address || lodging.address;
+    lodging.checkIn = checkIn || lodging.checkIn;
+    lodging.checkOut = checkOut || lodging.checkOut;
+
+    await trip.save();
+    res.status(200).json({ message: "✅ Lodging updated successfully", trip });
+  } catch (error) {
+    console.error("❌ Error updating lodging:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 module.exports = router;

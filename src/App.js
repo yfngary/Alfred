@@ -50,14 +50,6 @@ function Layout() {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="*"
-            element={
-              <ProtectedRoute>
-                <Navigate to="/dashboard" replace />
-              </ProtectedRoute>
-            }
-          />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegistrationForm />} />
           <Route path="/" element={<HomePage />} />
