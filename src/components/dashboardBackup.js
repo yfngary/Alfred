@@ -31,41 +31,61 @@ export default function Dashboard() {
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     const token = localStorage.getItem("token");
-  
     if (storedUser && token) {
       const userObj = { ...JSON.parse(storedUser), token };
       setUser(userObj);
-      fetchTrips(userObj.id); // Pass user ID instead
+      fetchTrips(userObj);
     } else {
       setMessage("You must be logged in to view your dashboard.");
     }
   }, []);
-  
-  const fetchTrips = async () => {
+
+  const fetchTrips = async (userObj) => {
     setLoading(true);
     try {
-      const token = localStorage.getItem("token"); // Ensure token is retrieved
-  
-      const response = await fetch(`http://localhost:5001/api/userTrips`, {
+      const response = await fetch("http://localhost:5001/api/userTrips", {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`, // Ensure token is in the header
+          Authorization: `Bearer ${userObj.token}`,
         },
       });
-  
-      if (!response.ok) {
-        throw new Error(`Failed to fetch trips: ${response.statusText}`);
-      }
-  
       const result = await response.json();
-      setTrips(result.trips);
+      if (response.ok) {
+        setTrips(result.trips);
+      } else {
+        setMessage(result.error || "Failed to fetch trips.");
+      }
     } catch (error) {
       setMessage("Error connecting to the server.");
-      console.error("Fetch Trips Error:", error);
     }
     setLoading(false);
-  }; 
+  };
+
+  const updateTrip = async (tripId) => {
+    try {
+      const response = await fetch(
+        `http://localhost:5001/api/trips/${tripId}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${user.token}`,
+          },
+          body: JSON.stringify(formData),
+        }
+      );
+      const result = await response.json();
+      if (response.ok) {
+        fetchTrips(user);
+        setEditingTrip(null);
+      } else {
+        setMessage(result.error || "Failed to update trip.");
+      }
+    } catch (error) {
+      setMessage("Error connecting to the server.");
+    }
+  };
 
   const sortGuests = (guests) => {
     if (sortOption === "name") {
@@ -125,41 +145,66 @@ export default function Dashboard() {
     }
   };
 
-  const updateTrip = async (tripId) => {
-    if (!tripId) {
-      setMessage("Invalid Trip ID.");
+  const updateTripDates = async (tripId) => {
+    // Find the trip from the state using the tripId
+    const tripToUpdate = trips.find((trip) => trip._id === tripId);
+
+    if (!tripToUpdate) {
+      setMessage("Trip not found.");
       return;
     }
-  
-    //console.log("Sending update request for Trip ID:", tripId, formData); // Debugging
-  
+
+    // Confirm before updating
+    if (
+      !window.confirm(
+        "Are you sure you want to update the trip dates? Lodging details may be affected."
+      )
+    ) {
+      return;
+    }
+
+    const updatedTrip = {
+      startDate: formData.startDate,
+      endDate: formData.endDate,
+      lodgings: tripToUpdate.lodgings.map((lodging) => ({
+        ...lodging,
+        checkIn:
+          lodging.checkIn >= formData.startDate ? lodging.checkIn : formData.startDate,
+        checkOut:
+          lodging.checkOut <= formData.endDate ? lodging.checkOut : formData.endDate,
+      })),
+    };
+
+    setLoading(true);
     try {
-      const response = await fetch(`http://localhost:5001/api/trips/${tripId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${user.token}`,
-        },
-        body: JSON.stringify(formData),
-      });
-  
+      const response = await fetch(
+        `http://localhost:5001/api/trips/${tripId}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${user.token}`,
+          },
+          body: JSON.stringify(updatedTrip),
+        }
+      );
       const result = await response.json();
-      //console.log("Update Response:", result); // Debugging
-  
-      if (response.ok && result.success) {
-        fetchTrips(); // Refresh UI
+      if (response.ok) {
+        setTrips((prevTrips) =>
+          prevTrips.map((trip) => (trip._id === tripId ? result.trip : trip))
+        );
         setEditingTrip(null);
-        setMessage("Trip updated successfully!");
+        setFormData({...formData, startDate: null});
+        setFormData({...formData, endDate: null});
       } else {
         setMessage(result.error || "Failed to update trip.");
-        console.log(result)
       }
     } catch (error) {
       setMessage("Error connecting to the server.");
-      console.error("Update error:", error);
+      console.log(error)
     }
+    setLoading(false);
   };
-  
 
   return (
     <div className="max-w-4xl mx-auto mt-10 p-6">
@@ -170,57 +215,80 @@ export default function Dashboard() {
       ) : trips.length > 0 ? (
         trips.map((trip) => (
           <div key={trip._id} className="border p-4 rounded mb-4 shadow">
-            <button
-              onClick={() => {
-                setEditingTrip(trip._id);
-              }}
-              className="bg-blue-500 text-white p-2 rounded ml-2"
-            >
-              Edit
-            </button>
+            <h2 className="text-xl font-semibold mb-2">{trip.tripName || "Unnamed Trip"}</h2>
             {editingTrip === trip._id ? (
               <div>
                 <input
                   type="text"
-                  placeholder="Trip Name"
                   value={formData.tripName}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      tripName: e.target.value,
-                    })
-                  }
+                  onChange={(e) => setFormData({ ...formData, tripName: e.target.value })}
                   className="w-full p-2 border rounded"
                 />
                 <input
                   type="text"
-                  placeholder="Destination"
                   value={formData.destination}
-                  onChange={(e) =>
-                    setFormData({ ...formData, destination: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, destination: e.target.value })}
                   className="w-full p-2 border rounded"
                 />
+                <DatePicker
+                  selected={formData.startDate}
+                  onChange={(date) => setFormData({ ...formData, startDate: date })}
+                  className="w-full p-2 border rounded"
+                />
+                <DatePicker
+                  selected={formData.endDate}
+                  onChange={(date) => setFormData({ ...formData, endDate: date })}
+                  className="w-full p-2 border rounded"
+                />
+                <textarea
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  className="w-full p-2 border rounded"
+                />
+                <button
+                  onClick={() => updateTrip(trip._id)}
+                  className="bg-green-500 text-white p-2 rounded mt-2"
+                >
+                  Save Changes
+                </button>
+                <button
+                  onClick={() => setEditingTrip(null)}
+                  className="bg-gray-500 text-white p-2 rounded mt-2 ml-2"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <p>
+                <strong>Destination:</strong> {trip.destination} 
+                <button
+                  onClick={() => {
+                    setEditingTrip(trip._id);
+                    setFormData(trip);
+                  }}
+                  className="bg-blue-500 text-white p-2 rounded ml-2"
+                >
+                  Edit
+                </button>
+              </p>
+            )}
+            {editingTrip === trip._id ? (
+              <div>
                 <label className="block text-sm font-medium">Start Date</label>
                 <DatePicker
                   selected={formData.startDate || new Date(trip.startDate)}
-                  onChange={(date) =>
-                    setFormData({ ...formData, startDate: date })
-                  }
+                  onChange={(date) => setFormData({ ...formData, startDate: date })}
                   className="w-full p-2 border rounded"
                 />
                 <label className="block text-sm font-medium">End Date</label>
                 <DatePicker
                   selected={formData.endDate || new Date(trip.endDate)}
-                  onChange={(date) =>
-                    setFormData({ ...formData, endDate: date })
-                  }
+                  onChange={(date) => setFormData({ ...formData, endDate: date })}
                   className="w-full p-2 border rounded"
                 />
                 <div className="flex space-x-2 mt-2">
                   <button
-                    onClick={
-                      () => updateTrip(trip._id)}
+                    onClick={() => updateTripDates(trip._id)} // Pass the specific tripId
                     className="bg-green-500 text-white p-2 rounded hover:bg-green-600"
                   >
                     Save Changes
@@ -228,6 +296,8 @@ export default function Dashboard() {
                   <button
                     onClick={() => {
                       setEditingTrip(null);
+                      setNewStartDate(null);
+                      setNewEndDate(null);
                     }}
                     className="bg-gray-500 text-white p-2 rounded hover:bg-gray-600"
                   >
@@ -236,21 +306,23 @@ export default function Dashboard() {
                 </div>
               </div>
             ) : (
-              <div>
-                <h2 className="text-xl font-semibold mb-2">
-                  {trip.tripName || "Unnamed Trip"}
-                </h2>
+              <>
                 <p>
-                  <strong>Destination:</strong> {trip.destination}
+                  <strong>Dates:</strong>{" "}
+                  {new Date(trip.startDate).toLocaleDateString()} -{" "}
+                  {new Date(trip.endDate).toLocaleDateString()}
                 </p>
-                <>
-                  <p>
-                    <strong>Dates:</strong>{" "}
-                    {new Date(trip.startDate).toLocaleDateString()} -{" "}
-                    {new Date(trip.endDate).toLocaleDateString()}
-                  </p>
-                </>
-              </div>
+                <button
+                  onClick={() => {
+                    setEditingTrip(trip._id);
+                    setNewStartDate(new Date(trip.startDate));
+                    setNewEndDate(new Date(trip.endDate));
+                  }}
+                  className="bg-blue-500 text-white p-2 rounded mt-2 hover:bg-blue-600"
+                >
+                  Edit Dates
+                </button>
+              </>
             )}
             {trip.lodgings && trip.lodgings.length > 0 && (
               <div className="mt-4">

@@ -24,55 +24,41 @@ router.post("/trips", authMiddleware, async (req, res) => {
   }
 });
 
-// GET: Fetch trips for the authenticated user
 router.get("/userTrips", authMiddleware, async (req, res) => {
   try {
-    const trips = await Trip.find({ userId: req.user.id });
+    const userId = req.user.id; // Use authenticated user's ID
+
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const trips = await Trip.find({ userId });
     res.json({ trips });
   } catch (error) {
     res.status(500).json({ error: "Server error" });
   }
 });
 
-// PUT: Update trip dates and lodging details
-router.put("/trips/:id", authMiddleware, async (req, res) => {
-  const { startDate, endDate, lodgings } = req.body;
 
+router.put("/trips/:tripId", authMiddleware, async (req, res) => {
   try {
-    // Find the trip by ID and ensure the user owns the trip
-    const trip = await Trip.findOne({ _id: req.params.id, userId: req.user.id });
+    const { tripId } = req.params;
+    const updatedTrip = await Trip.findByIdAndUpdate(tripId, req.body, {
+      new: true, // Return updated document
+      runValidators: true, // Ensure validation runs on update
+    });
 
-    if (!trip) {
-      return res.status(404).json({ error: "Trip not found or you don't have permission to update it." });
+    if (!updatedTrip) {
+      return res.status(404).json({ error: "Trip not found." });
     }
 
-    // Validate the dates
-    if (new Date(endDate) < new Date(startDate)) {
-      return res.status(400).json({ error: "End date cannot be before the start date." });
-    }
-
-    // Update the trip dates
-    trip.startDate = new Date(startDate);
-    trip.endDate = new Date(endDate);
-
-    // If lodging details are included, update them as well
-    if (lodgings && Array.isArray(lodgings)) {
-      trip.lodgings = lodgings.map((lodging) => ({
-        ...lodging,
-        // Optionally: Adjust lodging check-in and check-out dates based on the trip's new dates
-        checkIn: lodging.checkIn >= new Date(startDate) ? lodging.checkIn : new Date(startDate),
-        checkOut: lodging.checkOut <= new Date(endDate) ? lodging.checkOut : new Date(endDate),
-      }));
-    }
-
-    // Save the updated trip
-    await trip.save();
-    res.status(200).json({ message: "Trip and lodging details updated successfully", trip });
+    res.status(200).json({ success: true, trip: updatedTrip });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Server error" });
+    console.error("Error updating trip:", error);
+    res.status(500).json({ error: "Failed to update trip." });
   }
 });
+
 
 // Update guest details (relationship, name, email, phone)
 router.put("/:tripId/guests/:guestId", authMiddleware, async (req, res) => {

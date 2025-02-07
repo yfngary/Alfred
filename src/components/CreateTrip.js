@@ -181,8 +181,11 @@ export default function CreateTrip() {
             endDate: null,
             notes: "",
             lodgings: [],
-            guests: []
+            guests: [],
           });
+          setTimeout(() => {
+            window.location.href = "/dashboard"; // Redirect to the dashboard page
+          }, 2000);
         } else {
           setMessage(result.error?.toString() || "Failed to create trip.");
         }
