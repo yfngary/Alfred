@@ -1,5 +1,15 @@
 const mongoose = require("mongoose");
 
+const experienceSchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  date: { type: Date, required: true },
+  startTime: { type: String, required: true },
+  endTime: { type: String },
+  type: { type: String, enum: ["activity", "meal", "other"], required: true }, // Lowercased
+  isOvernight: { type: Boolean, default: false },
+  guests: [{ type: mongoose.Schema.Types.ObjectId, ref: "Guest" }],
+});
+
 const GuestSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String },
@@ -20,7 +30,8 @@ const TripSchema = new mongoose.Schema({
   startDate: Date,
   endDate: Date,
   lodgings: [LodgingSchema],
-  guests: [GuestSchema], // Guests added to the trip
+  guests: [GuestSchema],
+  experiences: [experienceSchema],
 });
 
 module.exports = mongoose.model("Trip", TripSchema);

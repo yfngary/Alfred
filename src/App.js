@@ -13,6 +13,7 @@ import LoginPage from "./components/LoginPage";
 import CreateTrip from "./components/CreateTrip";
 import Dashboard from "./components/Dashboard";
 import NavBar from "./components/NavBar";
+import CreateExperience from "./components/CreateExperience";
 
 // Function to check if the user is authenticated
 const isAuthenticated = () => {
@@ -23,7 +24,6 @@ const isAuthenticated = () => {
 const ProtectedRoute = ({ children }) => {
   return isAuthenticated() ? children : <Navigate to="/login" replace />;
 };
-
 
 function Layout() {
   const location = useLocation();
@@ -49,6 +49,10 @@ function Layout() {
                 <CreateTrip />
               </ProtectedRoute>
             }
+          />
+          <Route
+            path="/createExperience/:tripId"
+            element={<CreateExperience />}
           />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegistrationForm />} />

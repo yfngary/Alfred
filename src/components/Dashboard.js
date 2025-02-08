@@ -6,7 +6,9 @@ import usePlacesAutocomplete, {
 } from "use-places-autocomplete";
 import useOnclickOutside from "react-cool-onclickoutside";
 import "react-datepicker/dist/react-datepicker.css";
+import { useNavigate } from "react-router-dom";
 import { data } from "react-router";
+import { Link } from "react-router";
 
 export default function Dashboard() {
   const [trips, setTrips] = useState([]);
@@ -42,6 +44,7 @@ export default function Dashboard() {
   const [editingLodging, setEditingLodging] = useState(null);
 
   const ref = useRef(null);
+  const navigate = useNavigate();
 
   const {
     ready,
@@ -294,6 +297,8 @@ export default function Dashboard() {
             >
               Edit
             </button>
+            <Link to={`/createExperience/${trip._id}`}>+ Experience</Link>
+
             {editingTrip === trip._id ? (
               <div>
                 <input
