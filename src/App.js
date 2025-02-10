@@ -14,6 +14,7 @@ import CreateTrip from "./components/CreateTrip";
 import Dashboard from "./components/Dashboard";
 import NavBar from "./components/NavBar";
 import CreateExperience from "./components/CreateExperience";
+import CreateGroupChat from "./components/CreateGroupChat";
 
 // Function to check if the user is authenticated
 const isAuthenticated = () => {
@@ -34,6 +35,14 @@ function Layout() {
       {!hideNavOnRoutes.includes(location.pathname) && <NavBar />}
       <div className="p-6">
         <Routes>
+          <Route
+            path="/groupChat/:chatId"
+            element={
+              <ProtectedRoute>
+                <CreateGroupChat />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/dashboard"
             element={

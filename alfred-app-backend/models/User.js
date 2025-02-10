@@ -6,6 +6,7 @@ const UserSchema = new mongoose.Schema({
   password: { type: String, required: true },
   phone: { type: String },
   profilePicture: { type: String }, // Store image URL
+  groupChats: [{ type: mongoose.Schema.Types.ObjectId, ref: "GroupChat" }], // Reference to group chats
 });
 
 module.exports = mongoose.model("User", UserSchema);
