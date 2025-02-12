@@ -1,41 +1,58 @@
 const express = require("express");
 const router = express.Router();
-const { GroupChat, Message } = require("../models/chatModels");
+const Chat = require("../models/Chat");
+const Message = require("../models/Message");
 const authMiddleware = require("../middleware/authMiddleware");
 
-module.exports = (io) => {
-  
-  // Send a message and notify all chat members in real-time
-  router.post("/:chatId/messages", authMiddleware, async (req, res) => {
-    try {
-      const { content, attachments } = req.body;
-      const { chatId } = req.params;
+// Send a new message
+router.post("/:chatId/messages", authMiddleware, async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    const { content } = req.body;
 
-      if (!content) {
-        return res.status(400).json({ error: "Message content is required." });
-      }
+    // Validate message content
+    if (!content) return res.status(400).json({ error: "Message cannot be empty" });
 
-      const newMessage = new Message({
-        chatId,
-        sender: req.user.id,
-        content,
-        attachments: attachments || [],
-      });
+    // Create new message
+    const newMessage = new Message({
+      chatId,
+      sender: req.user.id, // Get sender from the authenticated user
+      content,
+    });
 
-      await newMessage.save();
-      await GroupChat.findByIdAndUpdate(chatId, { $push: { messages: newMessage._id } });
+    // Save message to DB
+    await newMessage.save();
 
-      const populatedMessage = await newMessage.populate("sender", "name email");
+    // Add message reference to the chat
+    await Chat.findByIdAndUpdate(chatId, { $push: { messages: newMessage._id } });
 
-      // Emit the message to all users in the chat room
-      io.to(chatId).emit("newMessage", populatedMessage);
+    res.status(201).json(newMessage);
+  } catch (error) {
+    res.status(500).json({ error: "Server error" });
+    console.error(error);
+  }
+});
 
-      res.status(201).json(populatedMessage);
-    } catch (error) {
-      console.error("Error sending message:", error);
-      res.status(500).json({ error: "Server error" });
+// 🟢 GET: Fetch messages for a chat
+router.get("/:chatId/messages", authMiddleware, async (req, res) => {
+  try {
+    const { chatId } = req.params;
+
+    // ✅ Find the chat and populate messages
+    const chat = await Chat.findById(chatId).populate({
+      path: "messages",
+      populate: { path: "sender", select: "name email" }, // Include sender details
+    });
+
+    if (!chat) {
+      return res.status(404).json({ error: "Chat not found" });
     }
-  });
 
-  return router;
-};
+    res.json({ messages: chat.messages });
+  } catch (error) {
+    console.error("Error fetching messages:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+module.exports = router;

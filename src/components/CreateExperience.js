@@ -109,6 +109,13 @@ export default function CreateExperience() {
       return;
     }
 
+    if (!selectedGuests || selectedGuests.length === 0) {
+      setMessage("Please select at least one guest.");
+      return;
+    }
+
+    console.log("🔍 Selected Guests:", selectedGuests); // Debugging log
+
     const newExperience = {
       title: experienceType.charAt(0).toUpperCase() + experienceType.slice(1), // Default title based on type
       date,
@@ -117,10 +124,12 @@ export default function CreateExperience() {
       isMultiDay,
       endDate: isMultiDay ? endDate : null,
       type: experienceType,
-      guests: selectedGuests,
+      guests: selectedGuests, // Ensure only valid IDs
       details: notes,
       attachments,
     };
+
+    console.log("📦 Experience Payload:", newExperience); // Debugging log
 
     try {
       const token = localStorage.getItem("token");
@@ -137,14 +146,19 @@ export default function CreateExperience() {
       );
 
       const result = await response.json();
+      console.log("📝 Server Response:", result);
+
       if (response.ok) {
-        setMessage("Experience added successfully!");
-        navigate(`/dashboard`);
-      } else {
-        setMessage(result.error || "Failed to add experience.");
+        console.log("Server Response:", result); // Debugging
+        if (result.chatId) {
+          navigate(`/chat/${result.chatId}`); // ✅ Redirect to the new chat
+        } else {
+          setMessage("Experience created, but chat could not be initialized.");
+        }
       }
     } catch (error) {
       setMessage("Error connecting to the server.");
+      console.error("❌ Error submitting experience:", error);
     }
   };
 

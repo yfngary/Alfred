@@ -1,5 +1,6 @@
 const express = require("express");
 const Trip = require("../models/Trip");
+const Chat = require("../models/Chat"); // Adjust based on your file structure
 const authMiddleware = require("../middleware/authMiddleware");
 const router = express.Router();
 
@@ -200,7 +201,7 @@ router.put(
 router.post("/:tripId/experiences", authMiddleware, async (req, res) => {
   try {
     const { tripId } = req.params;
-    const { title, date, startTime, endTime, isMultiDay, type, guests } =
+    const { title, date, startTime, endTime, isMultiDay, type, selectedGuests } =
       req.body;
 
     const trip = await Trip.findById(tripId);
@@ -208,6 +209,7 @@ router.post("/:tripId/experiences", authMiddleware, async (req, res) => {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
+    // Create new experience
     const newExperience = {
       title,
       date,
@@ -215,18 +217,28 @@ router.post("/:tripId/experiences", authMiddleware, async (req, res) => {
       endTime,
       type,
       isMultiDay,
-      guests,
+      selectedGuests,
     };
-
-    console.log(trip)
 
     trip.experiences.push(newExperience);
     await trip.save();
 
-    res.status(201).json({ message: "Experience added successfully", trip });
+    // Create a new group chat for the experience
+    const newChat = new Chat({
+      members: selectedGuests, // List of guest IDs
+      messages: [],
+    });
+    await newChat.save();
+    
+
+    res.status(201).json({
+      message: "Experience added successfully",
+      trip,
+      chatId: newChat._id, // ✅ Now chatId is included
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
-    console.log(error)
+    console.log(error);
   }
 });
 

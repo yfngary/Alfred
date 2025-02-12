@@ -6,6 +6,8 @@ const connectDB = require("./config/db");
 const authRoutes = require("./routes/authRoutes");
 const tripRoutes = require("./routes/tripRoutes");
 const chatRoutes = require("./routes/chatRoutes");
+const Message = require("./models/Message"); // ✅ Import Message model
+const Chat = require("./models/Chat"); // ✅ Import Chat model
 const http = require("http");
 
 require("dotenv").config();
@@ -23,11 +25,12 @@ const io = new Server(server, {
 app.use(cors({ origin: "http://localhost:3000", credentials: true }));
 
 // Middleware
-app.use(express.json()); 
+app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Connect to MongoDB
-mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+mongoose
+  .connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => console.log("MongoDB Connected"))
   .catch((err) => console.error("MongoDB Connection Error:", err));
 
@@ -39,22 +42,42 @@ server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
 
-// WebSocket Connection
+// 🔵 WebSocket Connection
 io.on("connection", (socket) => {
   console.log("New WebSocket Connection:", socket.id);
 
-  // Join a specific chat room
+  // ✅ Join a specific chat room
   socket.on("joinChat", (chatId) => {
     socket.join(chatId);
     console.log(`User joined chat: ${chatId}`);
   });
 
-  // Listen for new messages
-  socket.on("sendMessage", (message) => {
-    io.to(message.chatId).emit("newMessage", message); // Broadcast message to all users in the chat
+  // ✅ Listen for new messages
+  socket.on("sendMessage", async (messageData) => {
+    try {
+      const { chatId, sender, content } = messageData;
+
+      // ✅ Save the message to MongoDB
+      const newMessage = new Message({
+        chatId,
+        sender,
+        content,
+      });
+
+      await newMessage.save();
+
+      // ✅ Add message reference to chat
+      await Chat.findByIdAndUpdate(chatId, { $push: { messages: newMessage._id } });
+
+      // ✅ Broadcast message to chat members
+      io.to(chatId).emit("newMessage", newMessage);
+    } catch (error) {
+      console.error("Error saving message:", error);
+    }
   });
 
+  // ✅ Handle user disconnection
   socket.on("disconnect", () => {
-    console.log("User Disconnected");
+    console.log("User Disconnected:", socket.id);
   });
-})
+});

@@ -36,7 +36,7 @@ function Layout() {
       <div className="p-6">
         <Routes>
           <Route
-            path="/groupChat/:chatId"
+            path="/chat/:chatId"
             element={
               <ProtectedRoute>
                 <CreateGroupChat />
