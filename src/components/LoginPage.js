@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import "../styles/login.css";
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({ email: "", password: "" });
@@ -26,39 +27,36 @@ export default function LoginPage() {
     if (validate()) {
       setLoading(true);
       setMessage("");
-      
+
       try {
         const response = await fetch("http://localhost:5001/api/login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(formData),
         });
-        
+
         const result = await response.json();
-        console.log("Server Response:", result);
-        
         if (response.ok) {
           localStorage.setItem("user", JSON.stringify(result.user));
-          localStorage.setItem("token", result.token); // Store the token separately
+          localStorage.setItem("token", result.token);
           setMessage("Login successful! Redirecting...");
           setTimeout(() => {
-            window.location.href = "/dashboard"; // Redirect to the dashboard page
-          }, 2000);
+            window.location.href = "/dashboard";
+          }, 1500);
         } else {
           setMessage(result.error?.toString() || "Login failed.");
         }
       } catch (error) {
         setMessage("Error connecting to the server.");
       }
-      
+
       setLoading(false);
     }
   };
 
-
   return (
-    <div className="max-w-md mx-auto mt-10 p-6 bg-white shadow-lg rounded-lg">
-      <h2 className="text-xl font-bold mb-4">User Login</h2>
+    <div className="login-container">
+      <h2>User Login</h2>
       {message && <p className="text-center text-sm text-red-500">{message}</p>}
       <form onSubmit={handleSubmit} className="space-y-4">
         <input
@@ -67,7 +65,7 @@ export default function LoginPage() {
           placeholder="Email"
           value={formData.email}
           onChange={handleChange}
-          className="w-full p-2 border rounded"
+          className="login-input"
         />
         {errors.email && <p className="text-red-500 text-sm">{errors.email}</p>}
 
@@ -77,15 +75,13 @@ export default function LoginPage() {
           placeholder="Password"
           value={formData.password}
           onChange={handleChange}
-          className="w-full p-2 border rounded"
+          className="login-input"
         />
-        {errors.password && <p className="text-red-500 text-sm">{errors.password}</p>}
+        {errors.password && (
+          <p className="text-red-500 text-sm">{errors.password}</p>
+        )}
 
-        <button
-          type="submit"
-          className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
-          disabled={loading}
-        >
+        <button type="submit" className="login-button" disabled={loading}>
           {loading ? "Logging in..." : "Login"}
         </button>
       </form>

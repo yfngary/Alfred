@@ -9,6 +9,7 @@ import "react-datepicker/dist/react-datepicker.css";
 import { useNavigate } from "react-router-dom";
 import { data } from "react-router";
 import { Link } from "react-router";
+import '../styles/dashboard.css';
 
 export default function Dashboard() {
   const [trips, setTrips] = useState([]);
@@ -616,6 +617,61 @@ export default function Dashboard() {
                           </button>
                         </div>
                       )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {trip.experiences && trip.experiences.length > 0 && (
+              <div className="mt-4">
+                <h3 className="font-semibold">Experiences:</h3>
+                <ul className="list-disc list-inside">
+                  {trip.experiences.map((experience) => (
+                    <li
+                      key={experience._id}
+                      className="border p-2 rounded mb-2"
+                    >
+                      <h4 className="text-lg font-semibold">
+                        {experience.title}
+                      </h4>
+                      <p>
+                        <strong>Date:</strong>{" "}
+                        {experience.date
+                          ? new Date(experience.date).toLocaleDateString()
+                          : "N/A"}
+                      </p>
+                      <p>
+                        <strong>Time:</strong> {experience.startTime}{" "}
+                        {experience.endTime ? `- ${experience.endTime}` : ""}
+                      </p>
+                      <p>
+                        <strong>Location:</strong>{" "}
+                        {experience.location || "Not specified"}
+                      </p>
+                      <p>
+                        <strong>Guests:</strong>{" "}
+                        {experience.guests.length > 0
+                          ? experience.guests
+                              .map((guest) => guest.name)
+                              .join(", ")
+                          : "No guests added"}
+                      </p>
+                      <div className="flex gap-2 mt-2">
+                        <Link
+                          to={`/editExperience/${trip._id}/${experience._id}`}
+                          className="bg-blue-500 text-white p-2 rounded"
+                        >
+                          Edit
+                        </Link>
+                        <button
+                          onClick={() =>
+                            deleteExperience(trip._id, experience._id)
+                          }
+                          className="bg-red-500 text-white p-2 rounded"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </li>
                   ))}
                 </ul>
