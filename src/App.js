@@ -35,37 +35,37 @@ function Layout() {
       {!hideNavOnRoutes.includes(location.pathname) && <NavBar />}
       <div className="p-6">
         <Routes>
-          <Route
-            path="/chat/:chatId"
-            element={
-              <ProtectedRoute>
-                <CreateGroupChat />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/createTrip"
-            element={
-              <ProtectedRoute>
-                <CreateTrip />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/createExperience/:tripId"
-            element={<CreateExperience />}
-          />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegistrationForm />} />
-          <Route path="/" element={<HomePage />} />
+            <Route
+              path="/chat/:chatId"
+              element={
+                <ProtectedRoute>
+                  <CreateGroupChat />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/createTrip"
+              element={
+                <ProtectedRoute>
+                  <CreateTrip />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/createExperience/:tripId"
+              element={<CreateExperience />}
+            />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegistrationForm />} />
+            <Route path="/" element={<HomePage />} />
         </Routes>
       </div>
     </>

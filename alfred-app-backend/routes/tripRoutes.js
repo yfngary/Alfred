@@ -7,8 +7,20 @@ const router = express.Router();
 // POST: Create a new trip
 router.post("/trips", authMiddleware, async (req, res) => {
   try {
-    const { tripName, destination, startDate, endDate, lodgings, guests } =
-      req.body;
+    const { tripName, destination, startDate, endDate, lodgings, guests } = req.body;
+
+    // Include the trip creator in the chat members list
+    const allChatMembers = [req.user.id, ...guests.map((guest) => guest._id)];
+
+    // Create a chat for the trip
+    const newChat = new Chat({
+      name: `${tripName} Group Chat`, // Name chat after the trip
+      members: allChatMembers,
+      messages: [], // Empty messages at creation
+    });
+    await newChat.save();
+
+    // Create the trip and link it to the chat
     const newTrip = new Trip({
       userId: req.user.id,
       tripName,
@@ -17,13 +29,19 @@ router.post("/trips", authMiddleware, async (req, res) => {
       endDate,
       lodgings,
       guests,
+      chat: newChat._id, // Link the trip to the created chat
     });
 
     await newTrip.save();
-    res
-      .status(201)
-      .json({ message: "Trip created successfully", trip: newTrip });
+
+    // Send the trip and chat ID in the response
+    res.status(201).json({
+      message: "Trip created successfully",
+      trip: newTrip,
+      chatId: newChat._id, // Return chat ID so frontend can redirect users
+    });
   } catch (error) {
+    console.error("Error creating trip:", error);
     res.status(500).json({ error: "Server error" });
   }
 });
@@ -42,6 +60,23 @@ router.get("/userTrips", authMiddleware, async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
+
+router.delete("/trips/:tripId", authMiddleware, async (req, res) => {
+  try {
+    const { tripId } = req.params;
+
+    const trip = await Trip.findById(tripId);
+    if (!trip || trip.userId.toString() !== req.user.id) {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+
+    await Trip.findByIdAndDelete(tripId);
+    res.json({ message: "Trip deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 
 router.put("/trips/:tripId", authMiddleware, async (req, res) => {
   try {

@@ -81,11 +81,11 @@ export default function CreateExperience() {
     }
   };
 
-  const handleGuestSelection = (guestId) => {
+  const handleGuestSelection = (guestName) => {
     setSelectedGuests((prevGuests) =>
-      prevGuests.includes(guestId)
-        ? prevGuests.filter((id) => id !== guestId)
-        : [...prevGuests, guestId]
+      prevGuests.includes(guestName)
+        ? prevGuests.filter((id) => id !== guestName)
+        : [...prevGuests, guestName]
     );
   };
 
@@ -177,8 +177,8 @@ export default function CreateExperience() {
                 <label>
                   <input
                     type="checkbox"
-                    checked={selectedGuests.includes(guest._id)}
-                    onChange={() => handleGuestSelection(guest._id)}
+                    checked={selectedGuests.includes(guest.name)}
+                    onChange={() => handleGuestSelection(guest.name)}
                   />
                   {guest.name}
                 </label>

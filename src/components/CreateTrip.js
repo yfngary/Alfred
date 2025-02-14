@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom"; // Import navigate hooks
 import usePlacesAutocomplete, {
   getGeocode,
   getLatLng,
@@ -6,8 +7,15 @@ import usePlacesAutocomplete, {
 import useOnclickOutside from "react-cool-onclickoutside";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import { useContext } from "react";
+import { UserContext } from "../context/UserContext"; // ✅ Ensure this is correctly imported
+import { useUser } from "../context/UserContext";
+
 
 export default function CreateTrip() {
+  const navigate = useNavigate();
+  const { user, setUser } = useUser(); // ✅ Extract user and setUser
+
   const [formData, setFormData] = useState({
     tripName: "",
     destination: "",
@@ -53,7 +61,7 @@ export default function CreateTrip() {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
-  const [user, setUser] = useState(null);
+  //const [user, setUser] = useState(null);
   const [activeLodgingIndex, setActiveLodgingIndex] = useState(null);
 
   const ref = useRef(null);
@@ -73,8 +81,9 @@ export default function CreateTrip() {
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     const token = localStorage.getItem("token");
+  
     if (storedUser && token) {
-      setUser({ ...JSON.parse(storedUser), token });
+      setUser({ ...JSON.parse(storedUser), token }); // ✅ setUser should now work
     } else {
       setMessage("You must be logged in to create a trip.");
     }
@@ -151,10 +160,11 @@ export default function CreateTrip() {
       setMessage("You must be logged in to create a trip.");
       return;
     }
+  
     if (validate()) {
       setLoading(true);
       setMessage("");
-
+  
       try {
         const response = await fetch("http://localhost:5001/api/trips", {
           method: "POST",
@@ -168,10 +178,10 @@ export default function CreateTrip() {
             userId: user.id,
           }),
         });
-
+  
         const result = await response.json();
         console.log("Server Response:", result);
-
+  
         if (response.ok) {
           setMessage("Trip created successfully!");
           setFormData({
@@ -183,8 +193,13 @@ export default function CreateTrip() {
             lodgings: [],
             guests: [],
           });
+  
           setTimeout(() => {
-            window.location.href = "/dashboard"; // Redirect to the dashboard page
+            if (result.chatId) {
+              navigate(`/chat/${result.chatId}`); // ✅ Redirect to group chat
+            } else {
+              navigate("/dashboard"); // Fallback to dashboard if no chatId
+            }
           }, 2000);
         } else {
           setMessage(result.error?.toString() || "Failed to create trip.");
@@ -192,11 +207,11 @@ export default function CreateTrip() {
       } catch (error) {
         setMessage("Error connecting to the server.");
       }
-
+  
       setLoading(false);
     }
   };
-
+ 
   return (
     <div className="max-w-md mx-auto mt-10 p-6 bg-white shadow-lg rounded-lg">
       <h2 className="text-xl font-bold mb-4">Create a New Trip</h2>

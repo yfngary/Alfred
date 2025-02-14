@@ -42,42 +42,33 @@ server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
 
-// 🔵 WebSocket Connection
 io.on("connection", (socket) => {
-  console.log("New WebSocket Connection:", socket.id);
+  console.log("🔵 New WebSocket Connection:", socket.id);
 
-  // ✅ Join a specific chat room
   socket.on("joinChat", (chatId) => {
     socket.join(chatId);
-    console.log(`User joined chat: ${chatId}`);
+    console.log(`✅ User joined chat: ${chatId}`);
   });
 
-  // ✅ Listen for new messages
   socket.on("sendMessage", async (messageData) => {
     try {
       const { chatId, sender, content } = messageData;
 
-      // ✅ Save the message to MongoDB
-      const newMessage = new Message({
-        chatId,
-        sender,
-        content,
-      });
-
+      // ✅ Save message to MongoDB
+      const newMessage = new Message({ chatId, sender, content });
       await newMessage.save();
 
       // ✅ Add message reference to chat
       await Chat.findByIdAndUpdate(chatId, { $push: { messages: newMessage._id } });
 
-      // ✅ Broadcast message to chat members
+      // ✅ Send message to everyone in chat
       io.to(chatId).emit("newMessage", newMessage);
     } catch (error) {
-      console.error("Error saving message:", error);
+      console.error("❌ Error saving message:", error);
     }
   });
 
-  // ✅ Handle user disconnection
   socket.on("disconnect", () => {
-    console.log("User Disconnected:", socket.id);
+    console.log("🔴 User Disconnected:", socket.id);
   });
 });

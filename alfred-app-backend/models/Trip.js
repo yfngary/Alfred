@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const Chat = require("./Chat"); // ✅ Import Chat Model
 
 const experienceSchema = new mongoose.Schema({
   title: { type: String, required: true },
@@ -32,6 +33,7 @@ const TripSchema = new mongoose.Schema({
   lodgings: [LodgingSchema],
   guests: [GuestSchema],
   experiences: [experienceSchema],
+  chat: { type: mongoose.Schema.Types.ObjectId, ref: "Chat", required: false },
 });
 
 module.exports = mongoose.model("Trip", TripSchema);

@@ -9,7 +9,7 @@ import "react-datepicker/dist/react-datepicker.css";
 import { useNavigate } from "react-router-dom";
 import { data } from "react-router";
 import { Link } from "react-router";
-import '../styles/dashboard.css';
+import "../styles/dashboard.css";
 
 export default function Dashboard() {
   const [trips, setTrips] = useState([]);
@@ -90,6 +90,7 @@ export default function Dashboard() {
       }
 
       const result = await response.json();
+      console.log("📝 Server Response (Trips):", result); // Debugging
       setTrips(result.trips);
     } catch (error) {
       setTimeout(() => {
@@ -197,6 +198,30 @@ export default function Dashboard() {
     }
   };
 
+  const deleteTrip = async (tripId) => {
+    if (!window.confirm("Are you sure you want to delete this trip?")) return;
+  
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`http://localhost:5001/api/trips/${tripId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+  
+      const result = await response.json();
+      if (response.ok) {
+        setTrips((prevTrips) => prevTrips.filter((trip) => trip._id !== tripId));
+      } else {
+        console.error("Failed to delete trip:", result.error);
+      }
+    } catch (error) {
+      console.error("Error deleting trip:", error);
+    }
+  };
+  
+
   const updateLodging = async (tripId, lodgingId, updatedLodging) => {
     if (!tripId || !lodgingId) {
       console.error("❌ Invalid tripId or lodgingId:", tripId, lodgingId);
@@ -298,8 +323,30 @@ export default function Dashboard() {
             >
               Edit
             </button>
-            <Link to={`/createExperience/${trip._id}`}>+ Experience</Link>
-
+            <button
+              onClick={() => {
+                deleteTrip(trip._id);
+              }}
+              className="bg-blue-500 text-white p-2 rounded ml-2"
+            >
+              Delete Trip
+            </button>
+            <Link
+              to={`/createExperience/${trip._id}`}
+              className="bg-blue-500 text-white p-2 rounded"
+            >
+              + Experience
+            </Link>
+            {trip.chat ? (
+              <Link
+                to={`/chat/${trip.chat}`}
+                className="bg-blue-500 text-white p-2 rounded"
+              >
+                Group Chat
+              </Link>
+            ) : (
+              <p className="text-gray-500">No chat available</p>
+            )}
             {editingTrip === trip._id ? (
               <div>
                 <input
@@ -622,7 +669,7 @@ export default function Dashboard() {
                 </ul>
               </div>
             )}
-            {trip.experiences && trip.experiences.length > 0 && (
+            {trip.experiences && trip.experiences.length > 0 ? (
               <div className="mt-4">
                 <h3 className="font-semibold">Experiences:</h3>
                 <ul className="list-disc list-inside">
@@ -650,7 +697,7 @@ export default function Dashboard() {
                       </p>
                       <p>
                         <strong>Guests:</strong>{" "}
-                        {experience.guests.length > 0
+                        {experience.guests && experience.guests.length > 0
                           ? experience.guests
                               .map((guest) => guest.name)
                               .join(", ")
@@ -676,6 +723,8 @@ export default function Dashboard() {
                   ))}
                 </ul>
               </div>
+            ) : (
+              <p className="text-gray-500">No experiences found.</p>
             )}
           </div>
         ))
