@@ -11,7 +11,6 @@ import { useContext } from "react";
 import { UserContext } from "../context/UserContext"; // ✅ Ensure this is correctly imported
 import { useUser } from "../context/UserContext";
 
-
 export default function CreateTrip() {
   const navigate = useNavigate();
   const { user, setUser } = useUser(); // ✅ Extract user and setUser
@@ -81,7 +80,7 @@ export default function CreateTrip() {
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     const token = localStorage.getItem("token");
-  
+
     if (storedUser && token) {
       setUser({ ...JSON.parse(storedUser), token }); // ✅ setUser should now work
     } else {
@@ -160,11 +159,11 @@ export default function CreateTrip() {
       setMessage("You must be logged in to create a trip.");
       return;
     }
-  
+
     if (validate()) {
       setLoading(true);
       setMessage("");
-  
+
       try {
         const response = await fetch("http://localhost:5001/api/trips", {
           method: "POST",
@@ -178,10 +177,10 @@ export default function CreateTrip() {
             userId: user.id,
           }),
         });
-  
+
         const result = await response.json();
         console.log("Server Response:", result);
-  
+
         if (response.ok) {
           setMessage("Trip created successfully!");
           setFormData({
@@ -193,7 +192,7 @@ export default function CreateTrip() {
             lodgings: [],
             guests: [],
           });
-  
+
           setTimeout(() => {
             if (result.chatId) {
               navigate(`/chat/${result.chatId}`); // ✅ Redirect to group chat
@@ -207,11 +206,11 @@ export default function CreateTrip() {
       } catch (error) {
         setMessage("Error connecting to the server.");
       }
-  
+
       setLoading(false);
     }
   };
- 
+
   return (
     <div className="max-w-md mx-auto mt-10 p-6 bg-white shadow-lg rounded-lg">
       <h2 className="text-xl font-bold mb-4">Create a New Trip</h2>
@@ -321,32 +320,6 @@ export default function CreateTrip() {
           >
             - Remove Lodging
           </button>
-          {/* Number of Adults & Children */}
-          <div className="flex gap-4">
-            <div>
-              <label className="block text-sm font-medium">Adults</label>
-              <input
-                type="number"
-                name="adults"
-                min="1"
-                value={formData.adults}
-                onChange={handleGuestCountChange}
-                className="w-full p-2 border rounded"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium">Children</label>
-              <input
-                type="number"
-                name="children"
-                min="0"
-                value={formData.children}
-                onChange={handleGuestCountChange}
-                className="w-full p-2 border rounded"
-              />
-            </div>
-          </div>
-
           {/* Guest List */}
           <h3 className="text-lg font-semibold mt-4">Guests</h3>
           {formData.guests.map((guest, index) => (
@@ -387,7 +360,14 @@ export default function CreateTrip() {
             onClick={addGuest}
             className="w-full bg-gray-500 text-white p-2 rounded hover:bg-gray-600 mt-2"
           >
-            + Add Guest
+            + Add Adult
+          </button>
+          <button
+            type="button"
+            onClick={addGuest}
+            className="w-full bg-gray-500 text-white p-2 rounded hover:bg-gray-600 mt-2"
+          >
+            + Add Child
           </button>
 
           <button

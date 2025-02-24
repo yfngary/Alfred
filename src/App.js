@@ -15,6 +15,9 @@ import Dashboard from "./components/Dashboard";
 import NavBar from "./components/NavBar";
 import CreateExperience from "./components/CreateExperience";
 import CreateGroupChat from "./components/CreateGroupChat";
+import ProfilePage from "./components/ProfilePage";
+import UserProfile from "./components/userProfilePage";
+import NotificationPage from "./components/NotificationsPage";
 
 // Function to check if the user is authenticated
 const isAuthenticated = () => {
@@ -35,37 +38,65 @@ function Layout() {
       {!hideNavOnRoutes.includes(location.pathname) && <NavBar />}
       <div className="p-6">
         <Routes>
-            <Route
-              path="/chat/:chatId"
-              element={
-                <ProtectedRoute>
-                  <CreateGroupChat />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/createTrip"
-              element={
-                <ProtectedRoute>
-                  <CreateTrip />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/createExperience/:tripId"
-              element={<CreateExperience />}
-            />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegistrationForm />} />
-            <Route path="/" element={<HomePage />} />
+          <Route
+            path="/chat/:chatId"
+            element={
+              <ProtectedRoute>
+                <CreateGroupChat />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profilePage"
+            element={
+              <ProtectedRoute>
+                <ProfilePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/createTrip"
+            element={
+              <ProtectedRoute>
+                <CreateTrip />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/createExperience/:tripId"
+            element={
+              <ProtectedRoute>
+                <CreateExperience />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile/:userId"
+            element={
+              <ProtectedRoute>
+                <UserProfile />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/notifications/"
+            element={
+              <ProtectedRoute>
+                <NotificationPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegistrationForm />} />
+          <Route path="/" element={<HomePage />} />
         </Routes>
       </div>
     </>

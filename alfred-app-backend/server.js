@@ -6,9 +6,13 @@ const connectDB = require("./config/db");
 const authRoutes = require("./routes/authRoutes");
 const tripRoutes = require("./routes/tripRoutes");
 const chatRoutes = require("./routes/chatRoutes");
+const userRoutes = require("./routes/userRoutes");
+const requestRoutes = require("./routes/requestRoutes");
 const Message = require("./models/Message"); // ✅ Import Message model
 const Chat = require("./models/Chat"); // ✅ Import Chat model
+const path = require("path");
 const http = require("http");
+const { profile } = require("console");
 
 require("dotenv").config();
 
@@ -36,6 +40,9 @@ mongoose
 
 // Routes
 app.use("/api", authRoutes, tripRoutes, chatRoutes);
+app.use("/userApi", userRoutes);
+app.use("/requestsApi", requestRoutes);
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 const PORT = process.env.PORT || 5001;
 server.listen(PORT, () => {
@@ -64,7 +71,6 @@ io.on("connection", (socket) => {
       // ✅ Send message to everyone in chat
       io.to(chatId).emit("newMessage", newMessage);
     } catch (error) {
-      console.error("❌ Error saving message:", error);
     }
   });
 

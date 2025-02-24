@@ -23,7 +23,7 @@ const upload = multer({ storage });
 // ✅ Registration Route
 router.post("/register", upload.single("profilePicture"), async (req, res) => {
   try {
-    const { name, email, password, phone } = req.body;
+    const { username, name, email, password, phone } = req.body;
     
     // Check if user already exists
     const existingUser = await User.findOne({ email });
@@ -34,6 +34,7 @@ router.post("/register", upload.single("profilePicture"), async (req, res) => {
 
     // Save new user
     const newUser = new User({
+      username,
       name,
       email,
       password: hashedPassword,
@@ -51,7 +52,7 @@ router.post("/register", upload.single("profilePicture"), async (req, res) => {
 // MongoDB Connection
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB Connected"))
-  .catch((err) => console.error("❌ MongoDB Connection Failed:", err));
+  .catch((err) => console.error(""));
 
 // User Login Route
 router.post("/login", async (req, res) => {

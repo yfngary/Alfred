@@ -6,8 +6,11 @@ export default function NavBar() {
     <nav className="bg-blue-500 text-white p-4 flex justify-between">
       <h1 className="text-xl font-bold">Trip Planner</h1>
       <div className="space-x-4">
-        <Link to="/dashboard" className="hover:underline">Dashboard</Link>
-        <Link to="/createTrip" className="hover:underline">Create Trip</Link>
+        <Link to="/dashboard">Dashboard</Link>
+        <Link to="/createTrip" >Create Trip</Link>
+        <Link to="/profilePage">Profile</Link>
+        <Link to="/notifications/" >Notifications</Link>
+
       </div>
     </nav>
   );

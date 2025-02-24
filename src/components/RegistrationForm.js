@@ -1,8 +1,9 @@
 import React, { useState } from "react";
-import { Link } from 'react-router-dom';
+import { Link } from "react-router-dom";
 
 export default function RegistrationForm() {
   const [formData, setFormData] = useState({
+    username: "",
     name: "",
     email: "",
     password: "",
@@ -17,11 +18,36 @@ export default function RegistrationForm() {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+  };
+
+  const validateUsername = (username) => {
+    return /^\S*$/.test(username); // Ensures no spaces
+  };
+
+  const handleUsernameChange = (e) => {
+    const { name, value } = e.target;
+
+    if (name === "username" && !validateUsername(value)) {
+      setErrors((prev) => ({
+        ...prev,
+        username: "Username cannot contain spaces",
+      }));
+    } else {
+      setErrors((prev) => ({ ...prev, username: "" }));
+    }
+
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleFileChange = (e) => {
-    setFormData((prev) => ({ ...prev, profilePicture: e.target.files[0] }));
+    const file = e.target.files[0];
+    if (file) {
+      setFormData((prev) => ({ ...prev, profilePicture: file }));
+    }
   };
 
   const validate = () => {
@@ -31,12 +57,16 @@ export default function RegistrationForm() {
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email))
       tempErrors.email = "Invalid email format";
     if (!formData.password || formData.password.length < 8)
-      tempErrors.password = "Password must be at least 8 characters, include 1 uppercase letter, and 1 special character";
+      tempErrors.password =
+        "Password must be at least 8 characters, include 1 uppercase letter, and 1 special character";
     else if (!/[A-Z]/.test(formData.password))
       tempErrors.password = "Password must contain at least 1 uppercase letter";
     else if (!/[!@#$%^&*(),.?":{}|<>]/.test(formData.password))
-      tempErrors.password = "Password must contain at least 1 special character";
-    if (!formData.agreeToTerms) tempErrors.agreeToTerms = "You must agree to the Terms of Service and Privacy Policy";
+      tempErrors.password =
+        "Password must contain at least 1 special character";
+    if (!formData.agreeToTerms)
+      tempErrors.agreeToTerms =
+        "You must agree to the Terms of Service and Privacy Policy";
     setErrors(tempErrors);
     return Object.keys(tempErrors).length === 0;
   };
@@ -46,33 +76,44 @@ export default function RegistrationForm() {
     if (validate()) {
       setLoading(true);
       setMessage("");
-      
+
       const formDataToSend = new FormData();
+
+      // Append all form data fields
       Object.keys(formData).forEach((key) => {
-        formDataToSend.append(key, formData[key]);
+        if (key === "profilePicture" && formData[key] instanceof File) {
+          // Append the profile picture as a file
+          formDataToSend.append("profilePicture", formData[key]);
+        } else {
+          // Append other fields as usual
+          formDataToSend.append(key, formData[key]);
+        }
       });
-      
+
       try {
         const response = await fetch("http://localhost:5001/api/register", {
           method: "POST",
           body: formDataToSend,
         });
-        
+
         const result = await response.json();
         console.log("Server Response:", result);
-        
+
         if (response.ok) {
           setIsRegistered(true);
         } else {
           setMessage(result.error?.toString() || "Registration failed.");
           if (result.error === "Email already in use") {
-            setErrors((prev) => ({ ...prev, email: "This email is already registered." }));
+            setErrors((prev) => ({
+              ...prev,
+              email: "This email is already registered.",
+            }));
           }
         }
       } catch (error) {
         setMessage("Error connecting to the server.");
       }
-      
+
       setLoading(false);
     }
   };
@@ -82,7 +123,10 @@ export default function RegistrationForm() {
       <div className="max-w-md mx-auto mt-10 p-6 bg-white shadow-lg rounded-lg text-center">
         <h2 className="text-xl font-bold mb-4">Registration Successful!</h2>
         <p className="mb-4">Your account has been created successfully.</p>
-        <p className="mb-4">You can now <Link to="/login">login</Link> using your email and password.</p>
+        <p className="mb-4">
+          You can now <Link to="/login">login</Link> using your email and
+          password.
+        </p>
       </div>
     );
   }
@@ -95,6 +139,18 @@ export default function RegistrationForm() {
       <form onSubmit={handleSubmit} className="space-y-4">
         <input
           type="text"
+          name="username"
+          placeholder="Username"
+          value={formData.username}
+          onChange={handleUsernameChange}
+          className="w-full p-2 border rounded"
+          required
+        />
+        {errors.username && (
+          <p className="text-red-500 text-sm">{errors.username}</p>
+        )}
+        <input
+          type="text"
           name="name"
           placeholder="Full Name"
           value={formData.name}
@@ -102,6 +158,28 @@ export default function RegistrationForm() {
           className="w-full p-2 border rounded"
         />
         {errors.name && <p className="text-red-500 text-sm">{errors.name}</p>}
+
+        {formData.profilePicture && (
+          <img
+            src={URL.createObjectURL(formData.profilePicture)}
+            alt="Profile Preview"
+            style={{
+              width: "100px", // Set a fixed width
+              height: "100px", // Set a fixed height
+              borderRadius: "50%", // Makes it a circle
+              objectFit: "cover", // Ensures the image fills the space properly
+              marginTop: "10px", // Adds spacing
+            }}
+          />
+        )}
+
+        <input
+          type="file"
+          name="profilePicture"
+          accept="image/*"
+          onChange={handleFileChange}
+          className="w-full p-2 border rounded"
+        />
 
         <input
           type="email"
@@ -121,7 +199,9 @@ export default function RegistrationForm() {
           onChange={handleChange}
           className="w-full p-2 border rounded"
         />
-        {errors.password && <p className="text-red-500 text-sm">{errors.password}</p>}
+        {errors.password && (
+          <p className="text-red-500 text-sm">{errors.password}</p>
+        )}
 
         <input
           type="text"
@@ -129,13 +209,6 @@ export default function RegistrationForm() {
           placeholder="Phone (Optional)"
           value={formData.phone}
           onChange={handleChange}
-          className="w-full p-2 border rounded"
-        />
-
-        <input
-          type="file"
-          name="profilePicture"
-          onChange={handleFileChange}
           className="w-full p-2 border rounded"
         />
 
@@ -148,10 +221,19 @@ export default function RegistrationForm() {
             className="mr-2"
           />
           <label className="text-sm">
-            I agree to the <a href="#" className="text-blue-500">Terms of Service</a> and <a href="#" className="text-blue-500">Privacy Policy</a>
+            I agree to the{" "}
+            <a href="#" className="text-blue-500">
+              Terms of Service
+            </a>{" "}
+            and{" "}
+            <a href="#" className="text-blue-500">
+              Privacy Policy
+            </a>
           </label>
         </div>
-        {errors.agreeToTerms && <p className="text-red-500 text-sm">{errors.agreeToTerms}</p>}
+        {errors.agreeToTerms && (
+          <p className="text-red-500 text-sm">{errors.agreeToTerms}</p>
+        )}
 
         <button
           type="submit"
