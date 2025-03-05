@@ -277,11 +277,11 @@ router.post("/:tripId/experiences", authMiddleware, async (req, res) => {
   }
 });
 
-router.get("/:tripId", authMiddleware, async (req, res) => {
+router.get("/trips/:tripId", authMiddleware, async (req, res) => {
   try {
     const trip = await Trip.findById(req.params.tripId);
-    if (!trip) {
-      return res.status(404).json({ error: "Trip not found" });
+    if (trip) {
+      return res.status(202).json(trip);
     }
     res.json(trip);
   } catch (error) {

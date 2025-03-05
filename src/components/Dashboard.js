@@ -166,8 +166,6 @@ export default function Dashboard() {
       return;
     }
 
-    //console.log("Sending update request for Trip ID:", tripId, formData); // Debugging
-
     try {
       const response = await fetch(
         `http://localhost:5001/api/trips/${tripId}`,
@@ -182,8 +180,7 @@ export default function Dashboard() {
       );
 
       const result = await response.json();
-      //console.log("Update Response:", result); // Debugging
-
+      
       if (response.ok && result.success) {
         fetchTrips(); // Refresh UI
         setEditingTrip(null);
@@ -295,15 +292,6 @@ export default function Dashboard() {
     // Clear the auto-complete input
     setValue(newAddress, false);
     clearSuggestions();
-  };
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleDateChange = (date, field) => {
-    setFormData((prev) => ({ ...prev, [field]: date }));
   };
 
   return (
