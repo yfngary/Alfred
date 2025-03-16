@@ -1,5 +1,28 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import {
+  Container,
+  Box,
+  Typography,
+  TextField,
+  Button,
+  Checkbox,
+  FormControlLabel,
+  Paper,
+  Avatar,
+  CircularProgress,
+  Alert,
+  IconButton,
+  InputAdornment,
+  Stack,
+  Link as MuiLink
+} from "@mui/material";
+import {
+  Visibility,
+  VisibilityOff,
+  CloudUpload as UploadIcon,
+  HowToReg as RegisterIcon
+} from "@mui/icons-material";
 
 export default function RegistrationForm() {
   const [formData, setFormData] = useState({
@@ -15,6 +38,7 @@ export default function RegistrationForm() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [isRegistered, setIsRegistered] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -23,10 +47,14 @@ export default function RegistrationForm() {
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
+    // Clear error when user types
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: "" }));
+    }
   };
 
   const validateUsername = (username) => {
-    return /^\S*$/.test(username); // Ensures no spaces
+    return /^\S*$/.test(username);
   };
 
   const handleUsernameChange = (e) => {
@@ -53,21 +81,19 @@ export default function RegistrationForm() {
 
   const validate = () => {
     let tempErrors = {};
+    if (!formData.username) tempErrors.username = "Username is required";
     if (!formData.name) tempErrors.name = "Name is required";
     if (!formData.email) tempErrors.email = "Email is required";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email))
       tempErrors.email = "Invalid email format";
     if (!formData.password || formData.password.length < 8)
-      tempErrors.password =
-        "Password must be at least 8 characters, include 1 uppercase letter, and 1 special character";
+      tempErrors.password = "Password must be at least 8 characters";
     else if (!/[A-Z]/.test(formData.password))
       tempErrors.password = "Password must contain at least 1 uppercase letter";
     else if (!/[!@#$%^&*(),.?":{}|<>]/.test(formData.password))
-      tempErrors.password =
-        "Password must contain at least 1 special character";
+      tempErrors.password = "Password must contain at least 1 special character";
     if (!formData.agreeToTerms)
-      tempErrors.agreeToTerms =
-        "You must agree to the Terms of Service and Privacy Policy";
+      tempErrors.agreeToTerms = "You must agree to the Terms of Service and Privacy Policy";
     setErrors(tempErrors);
     return Object.keys(tempErrors).length === 0;
   };
@@ -79,14 +105,10 @@ export default function RegistrationForm() {
       setMessage("");
 
       const formDataToSend = new FormData();
-
-      // Append all form data fields
       Object.keys(formData).forEach((key) => {
         if (key === "profilePicture" && formData[key] instanceof File) {
-          // Append the profile picture as a file
           formDataToSend.append("profilePicture", formData[key]);
         } else {
-          // Append other fields as usual
           formDataToSend.append(key, formData[key]);
         }
       });
@@ -101,7 +123,10 @@ export default function RegistrationForm() {
         if (response.ok) {
           localStorage.setItem('token', result.token);
           localStorage.setItem('user', JSON.stringify(result.user));
-          navigate('/dashboard');
+          setIsRegistered(true);
+          setTimeout(() => {
+            navigate('/');
+          }, 2000);
         } else {
           setMessage(result.error?.toString() || "Registration failed.");
           if (result.error === "Email already in use") {
@@ -121,129 +146,217 @@ export default function RegistrationForm() {
 
   if (isRegistered) {
     return (
-      <div className="max-w-md mx-auto mt-10 p-6 bg-white shadow-lg rounded-lg text-center">
-        <h2 className="text-xl font-bold mb-4">Registration Successful!</h2>
-        <p className="mb-4">Your account has been created successfully.</p>
-        <p className="mb-4">
-          You can now <Link to="/login">login</Link> using your email and
-          password.
-        </p>
-      </div>
+      <Container maxWidth="sm">
+        <Box sx={{ mt: 8, textAlign: 'center' }}>
+          <Alert severity="success" sx={{ mb: 2 }}>
+            Registration successful! Redirecting to home page...
+          </Alert>
+          <CircularProgress />
+        </Box>
+      </Container>
     );
   }
 
   return (
-    <div className="max-w-md mx-auto mt-10 p-6 bg-white shadow-lg rounded-lg">
-      <h1>Welcome to Alfred App</h1>
-      <h2 className="text-xl font-bold mb-4">User Registration</h2>
-      {message && <p className="text-center text-sm text-red-500">{message}</p>}
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <input
-          type="text"
-          name="username"
-          placeholder="Username"
-          value={formData.username}
-          onChange={handleUsernameChange}
-          className="w-full p-2 border rounded"
-          required
-        />
-        {errors.username && (
-          <p className="text-red-500 text-sm">{errors.username}</p>
-        )}
-        <input
-          type="text"
-          name="name"
-          placeholder="Full Name"
-          value={formData.name}
-          onChange={handleChange}
-          className="w-full p-2 border rounded"
-        />
-        {errors.name && <p className="text-red-500 text-sm">{errors.name}</p>}
-
-        {formData.profilePicture && (
-          <img
-            src={URL.createObjectURL(formData.profilePicture)}
-            alt="Profile Preview"
-            style={{
-              width: "100px", // Set a fixed width
-              height: "100px", // Set a fixed height
-              borderRadius: "50%", // Makes it a circle
-              objectFit: "cover", // Ensures the image fills the space properly
-              marginTop: "10px", // Adds spacing
-            }}
-          />
-        )}
-
-        <input
-          type="file"
-          name="profilePicture"
-          accept="image/*"
-          onChange={handleFileChange}
-          className="w-full p-2 border rounded"
-        />
-
-        <input
-          type="email"
-          name="email"
-          placeholder="Email"
-          value={formData.email}
-          onChange={handleChange}
-          className="w-full p-2 border rounded"
-        />
-        {errors.email && <p className="text-red-500 text-sm">{errors.email}</p>}
-
-        <input
-          type="password"
-          name="password"
-          placeholder="Password"
-          value={formData.password}
-          onChange={handleChange}
-          className="w-full p-2 border rounded"
-        />
-        {errors.password && (
-          <p className="text-red-500 text-sm">{errors.password}</p>
-        )}
-
-        <input
-          type="text"
-          name="phone"
-          placeholder="Phone (Optional)"
-          value={formData.phone}
-          onChange={handleChange}
-          className="w-full p-2 border rounded"
-        />
-
-        <div className="flex items-center">
-          <input
-            type="checkbox"
-            name="agreeToTerms"
-            checked={formData.agreeToTerms}
-            onChange={handleChange}
-            className="mr-2"
-          />
-          <label className="text-sm">
-            I agree to the{" "}
-            <a href="#" className="text-blue-500">
-              Terms of Service
-            </a>{" "}
-            and{" "}
-            <a href="#" className="text-blue-500">
-              Privacy Policy
-            </a>
-          </label>
-        </div>
-        {errors.agreeToTerms && (
-          <p className="text-red-500 text-sm">{errors.agreeToTerms}</p>
-        )}
-
-        <button
-          type="submit"
-          className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
-          disabled={loading}
+    <Container maxWidth="sm">
+      <Box
+        sx={{
+          marginTop: 8,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+        }}
+      >
+        <Paper
+          elevation={3}
+          sx={{
+            p: 4,
+            width: '100%',
+            borderRadius: 2,
+            background: 'linear-gradient(to bottom, #ffffff, #f8f9fa)',
+          }}
         >
-          {loading ? "Registering..." : "Register"}
-        </button>
-      </form>
-    </div>
+          <Box sx={{ mb: 3, textAlign: 'center' }}>
+            <Avatar
+              sx={{
+                m: '0 auto',
+                mb: 2,
+                bgcolor: 'primary.main',
+                width: 56,
+                height: 56,
+              }}
+            >
+              <RegisterIcon />
+            </Avatar>
+            <Typography component="h1" variant="h4" gutterBottom>
+              Welcome to Alfred
+            </Typography>
+            <Typography variant="h6" color="text.secondary" gutterBottom>
+              Create your account
+            </Typography>
+          </Box>
+
+          {message && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {message}
+            </Alert>
+          )}
+
+          <form onSubmit={handleSubmit}>
+            <Stack spacing={2}>
+              <TextField
+                fullWidth
+                label="Username"
+                name="username"
+                value={formData.username}
+                onChange={handleUsernameChange}
+                error={!!errors.username}
+                helperText={errors.username}
+                required
+              />
+
+              <TextField
+                fullWidth
+                label="Full Name"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                error={!!errors.name}
+                helperText={errors.name}
+                required
+              />
+
+              <TextField
+                fullWidth
+                label="Email"
+                name="email"
+                type="email"
+                value={formData.email}
+                onChange={handleChange}
+                error={!!errors.email}
+                helperText={errors.email}
+                required
+              />
+
+              <TextField
+                fullWidth
+                label="Password"
+                name="password"
+                type={showPassword ? "text" : "password"}
+                value={formData.password}
+                onChange={handleChange}
+                error={!!errors.password}
+                helperText={errors.password}
+                required
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        onClick={() => setShowPassword(!showPassword)}
+                        edge="end"
+                      >
+                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+              />
+
+              <TextField
+                fullWidth
+                label="Phone (Optional)"
+                name="phone"
+                value={formData.phone}
+                onChange={handleChange}
+              />
+
+              <Box sx={{ mt: 2 }}>
+                {formData.profilePicture && (
+                  <Box sx={{ mb: 2, textAlign: 'center' }}>
+                    <Avatar
+                      src={URL.createObjectURL(formData.profilePicture)}
+                      sx={{ width: 100, height: 100, margin: '0 auto' }}
+                    />
+                  </Box>
+                )}
+                
+                <Button
+                  component="label"
+                  variant="outlined"
+                  startIcon={<UploadIcon />}
+                  fullWidth
+                >
+                  Upload Profile Picture
+                  <input
+                    type="file"
+                    hidden
+                    name="profilePicture"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                  />
+                </Button>
+              </Box>
+
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    name="agreeToTerms"
+                    checked={formData.agreeToTerms}
+                    onChange={handleChange}
+                    color="primary"
+                  />
+                }
+                label={
+                  <Typography variant="body2">
+                    I agree to the{" "}
+                    <MuiLink href="#" underline="hover">
+                      Terms of Service
+                    </MuiLink>{" "}
+                    and{" "}
+                    <MuiLink href="#" underline="hover">
+                      Privacy Policy
+                    </MuiLink>
+                  </Typography>
+                }
+              />
+              {errors.agreeToTerms && (
+                <Typography color="error" variant="caption">
+                  {errors.agreeToTerms}
+                </Typography>
+              )}
+
+              <Button
+                type="submit"
+                fullWidth
+                variant="contained"
+                size="large"
+                disabled={loading}
+                sx={{
+                  mt: 2,
+                  height: 48,
+                  background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
+                  boxShadow: '0 3px 5px 2px rgba(33, 203, 243, .3)',
+                }}
+              >
+                {loading ? (
+                  <CircularProgress size={24} color="inherit" />
+                ) : (
+                  "Register"
+                )}
+              </Button>
+
+              <Box sx={{ mt: 2, textAlign: 'center' }}>
+                <Typography variant="body2" color="text.secondary">
+                  Already have an account?{" "}
+                  <MuiLink component={Link} to="/login" underline="hover">
+                    Login here
+                  </MuiLink>
+                </Typography>
+              </Box>
+            </Stack>
+          </form>
+        </Paper>
+      </Box>
+    </Container>
   );
 }

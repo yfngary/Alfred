@@ -44,7 +44,7 @@ const LodgingSchema = new mongoose.Schema({
 });
 
 const TripSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true }, // Trip owner
   tripName: String,
   destination: String,
   startDate: Date,
@@ -53,6 +53,18 @@ const TripSchema = new mongoose.Schema({
   guests: [GuestSchema],
   experiences: [experienceSchema],
   chat: { type: mongoose.Schema.Types.ObjectId, ref: "Chat", required: true },
+  // Add access control fields
+  collaborators: [{
+    user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    role: { 
+      type: String, 
+      enum: ["admin", "editor", "viewer"],
+      default: "viewer"
+    },
+    addedAt: { type: Date, default: Date.now }
+  }],
+  isPublic: { type: Boolean, default: false },
+  inviteCode: { type: String, unique: true, sparse: true }
 });
 
 module.exports = mongoose.model("Trip", TripSchema);

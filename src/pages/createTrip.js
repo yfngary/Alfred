@@ -16,6 +16,7 @@ import {
   Typography,
   CircularProgress,
 } from "@mui/material";
+import { useTrips } from '../context/TripContext';
 
 const steps = [
   "Trip Details",
@@ -29,6 +30,7 @@ const steps = [
 
 const CreateTrip = () => {
   const navigate = useNavigate();
+  const { refreshTrips } = useTrips();
   const [activeStep, setActiveStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
@@ -66,7 +68,8 @@ const CreateTrip = () => {
 
         if (response.ok) {
           const data = await response.json();
-          navigate(`/trip/${data.trip._id}`);
+          refreshTrips(); // Refresh trips in NavBar
+          navigate(`/trips/${data.trip._id}`);
         } else {
           const errorData = await response.json();
           throw new Error(errorData.error || "Failed to create trip.");

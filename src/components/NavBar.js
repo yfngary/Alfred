@@ -19,6 +19,7 @@ import {
   Box,
   Divider
 } from '@mui/material';
+import { useTrips } from '../context/TripContext';
 
 // Define widths for collapsed and expanded states
 const collapsedWidth = "60px";
@@ -80,32 +81,47 @@ export default function NavBar({ isOpen, setIsOpen }) {
   const [channelsOpen, setChannelsOpen] = useState(true);
   const [tripsOpen, setTripsOpen] = useState(true);
   const [selectedChat, setSelectedChat] = useState(null);
+  const { refreshTrigger } = useTrips();
 
   useEffect(() => {
     const token = localStorage.getItem("token");
-    fetch(`http://localhost:5001/api/userTrips`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    })
-      .then((res) => res.json())
-      .then((data) => {
+    if (!token) {
+      console.log("No token found");
+      return;
+    }
+
+    const fetchTrips = async () => {
+      try {
+        const response = await fetch(`http://localhost:5001/api/userTrips`, {
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+        });
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            console.log("Unauthorized access - token may be invalid");
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
+            window.location.href = "/login";
+            return;
+          }
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
         if (data && data.trips) {
           console.log("Trips data:", data.trips);
-          console.log("First trip experiences:", data.trips[0]?.experiences);
-          if (data.trips[0]?.experiences) {
-            console.log("Experience chat IDs:", data.trips[0].experiences.map(exp => ({
-              title: exp.title,
-              chatId: exp.chat?._id
-            })));
-          }
           setTrips(data.trips);
         }
-      })
-      .catch((error) => console.error("Error fetching trips:", error));
-  }, []);
+      } catch (error) {
+        console.error("Error fetching trips:", error);
+      }
+    };
+
+    fetchTrips();
+  }, [refreshTrigger]);
 
   const handleTripChange = (tripId) => {
     setSelectedTrip(tripId);

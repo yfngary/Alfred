@@ -78,6 +78,53 @@ router.post("/trips", authMiddleware, async (req, res) => {
   }
 });
 
+// Helper function to check user's trip access level
+const checkTripAccess = async (tripId, userId) => {
+  const trip = await Trip.findById(tripId);
+  if (!trip) return null;
+
+  if (trip.userId.toString() === userId) return "owner";
+  
+  const collaborator = trip.collaborators.find(c => c.user.toString() === userId);
+  if (collaborator) return collaborator.role;
+  
+  if (trip.isPublic) return "viewer";
+  
+  return null;
+};
+
+// Middleware to check trip access
+const tripAccessMiddleware = (requiredRole) => async (req, res, next) => {
+  try {
+    const tripId = req.params.tripId;
+    const userId = req.user.id;
+    
+    const accessLevel = await checkTripAccess(tripId, userId);
+    
+    if (!accessLevel) {
+      return res.status(403).json({ error: "Unauthorized access to trip" });
+    }
+    
+    // Define role hierarchy
+    const roleHierarchy = {
+      owner: 4,
+      admin: 3,
+      editor: 2,
+      viewer: 1
+    };
+    
+    if (roleHierarchy[accessLevel] >= roleHierarchy[requiredRole]) {
+      req.userTripRole = accessLevel;
+      next();
+    } else {
+      res.status(403).json({ error: "Insufficient permissions" });
+    }
+  } catch (error) {
+    res.status(500).json({ error: "Server error checking permissions" });
+  }
+};
+
+// Get user's trips (including ones they have access to)
 router.get("/userTrips", authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -86,15 +133,23 @@ router.get("/userTrips", authMiddleware, async (req, res) => {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    const trips = await Trip.find({ userId })
-      .populate('chat')
-      .populate({
-        path: 'experiences',
-        populate: {
-          path: 'chat',
-          model: 'Chat'
-        }
-      });
+    // Find trips where user is owner or collaborator
+    const trips = await Trip.find({
+      $or: [
+        { userId: userId },
+        { 'collaborators.user': userId },
+        { isPublic: true }
+      ]
+    })
+    .populate('chat')
+    .populate({
+      path: 'experiences',
+      populate: {
+        path: 'chat',
+        model: 'Chat'
+      }
+    })
+    .populate('collaborators.user', 'name email');
 
     console.log("Populated trips:", JSON.stringify(trips, null, 2));
     res.json({ trips });
@@ -104,22 +159,62 @@ router.get("/userTrips", authMiddleware, async (req, res) => {
   }
 });
 
+// Update the delete trip route to clean up associated data
 router.delete("/trips/:tripId", authMiddleware, async (req, res) => {
   try {
     const { tripId } = req.params;
 
-    const trip = await Trip.findById(tripId);
-    if (!trip || trip.userId.toString() !== req.user.id) {
-      return res.status(403).json({ error: "Unauthorized" });
+    // Find the trip and populate chats
+    const trip = await Trip.findById(tripId)
+      .populate('chat')
+      .populate('experiences.chat');
+
+    if (!trip) {
+      return res.status(404).json({ error: "Trip not found" });
     }
 
+    // Check if user is the owner
+    if (trip.userId.toString() !== req.user.id) {
+      return res.status(403).json({ error: "Only the trip owner can delete the trip" });
+    }
+
+    // Delete the main trip chat
+    if (trip.chat) {
+      await Chat.findByIdAndDelete(trip.chat._id);
+    }
+
+    // Delete all experience chats
+    for (const experience of trip.experiences) {
+      if (experience.chat) {
+        await Chat.findByIdAndDelete(experience.chat._id);
+      }
+    }
+
+    // Delete any uploaded files associated with experiences
+    for (const experience of trip.experiences) {
+      if (experience.attachments && experience.attachments.length > 0) {
+        for (const attachment of experience.attachments) {
+          try {
+            if (attachment.path) {
+              fs.unlinkSync(attachment.path);
+            }
+          } catch (err) {
+            console.error(`Error deleting file ${attachment.path}:`, err);
+            // Continue with deletion even if file removal fails
+          }
+        }
+      }
+    }
+
+    // Delete the trip itself
     await Trip.findByIdAndDelete(tripId);
-    res.json({ message: "Trip deleted successfully" });
+
+    res.json({ message: "Trip and all associated data deleted successfully" });
   } catch (error) {
+    console.error("Error deleting trip:", error);
     res.status(500).json({ error: "Server error" });
   }
 });
-
 
 router.put("/trips/:tripId", authMiddleware, async (req, res) => {
   try {
@@ -504,6 +599,141 @@ router.get("/trips/chat/:chatId", authMiddleware, async (req, res) => {
     res.json({ trip });
   } catch (error) {
     console.error("Error finding trip by chat ID:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// Add collaborator to trip
+router.post("/:tripId/collaborators", authMiddleware, tripAccessMiddleware("admin"), async (req, res) => {
+  try {
+    const { email, role } = req.body;
+    const tripId = req.params.tripId;
+
+    // Find user by email
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Check if user is already a collaborator
+    const trip = await Trip.findById(tripId);
+    if (trip.collaborators.some(c => c.user.toString() === user._id.toString())) {
+      return res.status(400).json({ error: "User is already a collaborator" });
+    }
+
+    // Add collaborator
+    trip.collaborators.push({
+      user: user._id,
+      role: role || "viewer"
+    });
+
+    // Add user to trip chat
+    if (trip.chat) {
+      await Chat.findByIdAndUpdate(trip.chat, {
+        $addToSet: { members: user._id }
+      });
+    }
+
+    await trip.save();
+    res.json({ message: "Collaborator added successfully", trip });
+  } catch (error) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// Update collaborator role
+router.put("/:tripId/collaborators/:userId", authMiddleware, tripAccessMiddleware("admin"), async (req, res) => {
+  try {
+    const { role } = req.body;
+    const { tripId, userId } = req.params;
+
+    const trip = await Trip.findById(tripId);
+    const collaborator = trip.collaborators.find(c => c.user.toString() === userId);
+    
+    if (!collaborator) {
+      return res.status(404).json({ error: "Collaborator not found" });
+    }
+
+    collaborator.role = role;
+    await trip.save();
+
+    res.json({ message: "Collaborator role updated", trip });
+  } catch (error) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// Remove collaborator
+router.delete("/:tripId/collaborators/:userId", authMiddleware, tripAccessMiddleware("admin"), async (req, res) => {
+  try {
+    const { tripId, userId } = req.params;
+
+    const trip = await Trip.findById(tripId);
+    trip.collaborators = trip.collaborators.filter(c => c.user.toString() !== userId);
+
+    // Remove user from trip chat
+    if (trip.chat) {
+      await Chat.findByIdAndUpdate(trip.chat, {
+        $pull: { members: userId }
+      });
+    }
+
+    await trip.save();
+    res.json({ message: "Collaborator removed", trip });
+  } catch (error) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// Generate invite code
+router.post("/:tripId/invite-code", authMiddleware, tripAccessMiddleware("admin"), async (req, res) => {
+  try {
+    const tripId = req.params.tripId;
+    const inviteCode = Math.random().toString(36).substring(2, 15);
+
+    const trip = await Trip.findByIdAndUpdate(tripId, 
+      { inviteCode }, 
+      { new: true }
+    );
+
+    res.json({ inviteCode: trip.inviteCode });
+  } catch (error) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// Join trip with invite code
+router.post("/join/:inviteCode", authMiddleware, async (req, res) => {
+  try {
+    const { inviteCode } = req.params;
+    const userId = req.user.id;
+
+    const trip = await Trip.findOne({ inviteCode });
+    if (!trip) {
+      return res.status(404).json({ error: "Invalid invite code" });
+    }
+
+    // Check if user is already a collaborator
+    if (trip.collaborators.some(c => c.user.toString() === userId)) {
+      return res.status(400).json({ error: "Already a member of this trip" });
+    }
+
+    // Add user as viewer
+    trip.collaborators.push({
+      user: userId,
+      role: "viewer"
+    });
+
+    // Add to trip chat
+    if (trip.chat) {
+      await Chat.findByIdAndUpdate(trip.chat, {
+        $addToSet: { members: userId }
+      });
+    }
+
+    await trip.save();
+    res.json({ message: "Successfully joined trip", trip });
+  } catch (error) {
     res.status(500).json({ error: "Server error" });
   }
 });

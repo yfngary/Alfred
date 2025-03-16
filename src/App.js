@@ -8,7 +8,6 @@ import {
   Navigate,
 } from "react-router-dom";
 import RegistrationForm from "./components/RegistrationForm";
-import HomePage from "./components/HomePage"; // Assuming you have a home page
 import LoginPage from "./components/LoginPage";
 import CreateTrip from "./pages/createTrip";
 import TripDashboard from "./components/TripDashboard";
@@ -18,10 +17,12 @@ import CreateGroupChat from "./components/CreateGroupChat";
 import ProfilePage from "./components/ProfilePage";
 import UserProfile from "./components/userProfilePage";
 import NotificationPage from "./components/NotificationsPage";
+import Dashboard from "./components/Dashboard"; // We'll create this
 import { useEffect } from "react";
-import { Dashboard } from "@mui/icons-material";
 import TripCalendarView from "./components/TripCalendarView";
 import { Box } from "@mui/material";
+import JoinTrip from './components/JoinTrip';
+import { TripProvider } from './context/TripContext';
 
 const isAuthenticated = () => {
   const token = localStorage.getItem("token");
@@ -47,7 +48,7 @@ const isAuthenticated = () => {
       return false;
     }
     
-    const expiry = payload.exp * 1000; // Convert to milliseconds
+    const expiry = payload.exp * 1000;
     const now = Date.now();
     
     if (now >= expiry) {
@@ -88,7 +89,7 @@ const ProtectedRoute = ({ children }) => {
 
 function Layout() {
   const location = useLocation();
-  const hideNavOnRoutes = ["/login", "/register", "/"];
+  const hideNavOnRoutes = ["/login", "/register"];
   const hideNav = hideNavOnRoutes.includes(location.pathname);
   const [navOpen, setNavOpen] = React.useState(false);
   const expandedWidth = 160;
@@ -196,10 +197,27 @@ function Layout() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/join-trip"
+            element={
+              <ProtectedRoute>
+                <JoinTrip />
+              </ProtectedRoute>
+            }
+          />
           {/* Public routes */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegistrationForm />} />
-          <Route path="/" element={<HomePage />} />
+          
+          {/* Make Dashboard the default route */}
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </Box>
     </Box>
@@ -209,7 +227,9 @@ function Layout() {
 function App() {
   return (
     <Router>
-      <Layout />
+      <TripProvider>
+        <Layout />
+      </TripProvider>
     </Router>
   );
 }
