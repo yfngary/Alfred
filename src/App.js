@@ -19,36 +19,116 @@ import ProfilePage from "./components/ProfilePage";
 import UserProfile from "./components/userProfilePage";
 import NotificationPage from "./components/NotificationsPage";
 import { useEffect } from "react";
+import { Dashboard } from "@mui/icons-material";
+import TripCalendarView from "./components/TripCalendarView";
+import { Box } from "@mui/material";
 
-// Function to check if the user is authenticated
 const isAuthenticated = () => {
-  return !!localStorage.getItem("token"); // Checks if the token exists
+  const token = localStorage.getItem("token");
+  
+  if (!token) {
+    return false;
+  }
+  
+  try {
+    const parts = token.split('.');
+    
+    if (parts.length !== 3) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      return false;
+    }
+    
+    const payload = JSON.parse(atob(parts[1]));
+    
+    if (!payload.exp) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      return false;
+    }
+    
+    const expiry = payload.exp * 1000; // Convert to milliseconds
+    const now = Date.now();
+    
+    if (now >= expiry) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    return false;
+  }
 };
 
-// Protected Route Component
 const ProtectedRoute = ({ children }) => {
-  return isAuthenticated() ? children : <Navigate to="/login" replace />;
+  const [isLoading, setIsLoading] = React.useState(true);
+  const location = useLocation();
+  
+  React.useEffect(() => {
+    const checkAuth = async () => {
+      setIsLoading(false);
+    };
+    checkAuth();
+  }, []);
+
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!isAuthenticated()) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  return children;
 };
 
 function Layout() {
   const location = useLocation();
   const hideNavOnRoutes = ["/login", "/register", "/"];
   const hideNav = hideNavOnRoutes.includes(location.pathname);
-
-  // Manage NavBar open/closed state in Layout
   const [navOpen, setNavOpen] = React.useState(false);
-  const expandedWidth = 160; // Further reduced width when the nav bar is expanded
-  const collapsedWidth = 40; // Further reduced width when the nav bar is collapsed
+  const expandedWidth = 160;
+  const collapsedWidth = 40;
 
   return (
-    <>
-      {/* Show NavBar only on routes where it's desired */}
+    <Box sx={{ 
+      display: 'flex', 
+      minHeight: '100vh',
+      width: '100vw',
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: "#f5f5f5",
+      overflow: 'hidden'
+    }}>
       {!hideNav && <NavBar isOpen={navOpen} setIsOpen={setNavOpen} />}
-      <div
-        className="p-6"
-        style={{
-          marginLeft: hideNav ? 0 : navOpen ? expandedWidth : collapsedWidth,
+      <Box
+        component="main"
+        sx={{
+          flex: 1,
+          marginLeft: hideNav ? 0 : navOpen ? `${expandedWidth}px` : `${collapsedWidth}px`,
           transition: "margin-left 0.3s ease",
+          height: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          position: "relative",
+          overflow: 'auto',
+          '&::-webkit-scrollbar': {
+            width: '8px',
+          },
+          '&::-webkit-scrollbar-track': {
+            backgroundColor: '#f5f5f5',
+          },
+          '&::-webkit-scrollbar-thumb': {
+            backgroundColor: '#888',
+            borderRadius: '4px',
+          }
         }}
       >
         <Routes>
@@ -61,9 +141,19 @@ function Layout() {
             }
           />
           <Route 
-          path="/trips/:tripId" 
-          element={
-            <TripDashboard />
+            path="/trips/:tripId" 
+            element={
+              <ProtectedRoute>
+                <TripDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/tripsCalendar/:tripId" 
+            element={
+              <ProtectedRoute>
+                <TripCalendarView />
+              </ProtectedRoute>
             } 
           />
           <Route
@@ -106,12 +196,13 @@ function Layout() {
               </ProtectedRoute>
             }
           />
+          {/* Public routes */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegistrationForm />} />
           <Route path="/" element={<HomePage />} />
         </Routes>
-      </div>
-    </>
+      </Box>
+    </Box>
   );
 }
 

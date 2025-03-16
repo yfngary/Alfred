@@ -112,7 +112,6 @@ const GuestRelationship = ({ formData, updateFormData }) => {
     
     // Remove ONLY the selected guest from availableGuests.
     const updatedAvailable = availableGuests.filter(g => g.name !== guest.name);
-    console.log(updatedAvailable)
     setGroups(updatedGroups);
     setAvailableGuests(updatedAvailable);
   };

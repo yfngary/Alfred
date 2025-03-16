@@ -64,12 +64,13 @@ const CreateTrip = () => {
           body: JSON.stringify(formData),
         });
 
-        if (!response.ok) {
+        if (response.ok) {
+          const data = await response.json();
+          navigate(`/trip/${data.trip._id}`);
+        } else {
           const errorData = await response.json();
           throw new Error(errorData.error || "Failed to create trip.");
         }
-        console.log("Trip created successfully!");
-        navigate('/dashboard');
       } catch (error) {
         console.error("Error submitting trip:", error);
       } finally {

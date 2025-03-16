@@ -49,7 +49,6 @@ export default function ProfilePage() {
         );
   
         const result = await response.json();
-        console.log(result)
         if (response.ok) {
           setFriends(result.friends);
         } else {
@@ -90,8 +89,6 @@ export default function ProfilePage() {
       );
 
       const result = await response.json();
-      console.log("API Response:", result); // Debugging Line
-
       if (response.ok && Array.isArray(result.users)) {
         // Filter out the current user
         const filteredUsers = result.users.filter(
@@ -109,7 +106,6 @@ export default function ProfilePage() {
 
   // Function to handle user selection
   const handleUserSelect = (id) => {
-    console.log("Selected ID:", id);
     navigate(`/profile/${id}`);
     setIsDropdownVisible(false);
   };

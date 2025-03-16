@@ -17,7 +17,11 @@ const TripLocationForm = ({ formData, updateFormData }) => {
   });
 
   useEffect(() => {
-    updateFormData({ location, coordinates });
+    updateFormData({ 
+      location, 
+      destination: location, // Add destination field for backend compatibility
+      coordinates 
+    });
   }, [location, coordinates]);
 
   // Handles when a city suggestion is selected

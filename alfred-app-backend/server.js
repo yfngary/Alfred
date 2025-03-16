@@ -57,20 +57,32 @@ io.on("connection", (socket) => {
     console.log(`✅ User joined chat: ${chatId}`);
   });
 
+  socket.on("leaveChat", (chatId) => {
+    socket.leave(chatId);
+    console.log(`🚪 User left chat: ${chatId}`);
+  });
+
   socket.on("sendMessage", async (messageData) => {
     try {
       const { chatId, sender, content } = messageData;
 
-      // ✅ Save message to MongoDB
+      // Create and save the new message
       const newMessage = new Message({ chatId, sender, content });
       await newMessage.save();
 
-      // ✅ Add message reference to chat
+      // Add message reference to chat
       await Chat.findByIdAndUpdate(chatId, { $push: { messages: newMessage._id } });
 
-      // ✅ Send message to everyone in chat
-      io.to(chatId).emit("newMessage", newMessage);
+      // Populate sender information before broadcasting
+      const populatedMessage = await Message.findById(newMessage._id)
+        .populate('sender', 'name email');
+
+      // Broadcast to everyone in the chat room (including sender)
+      io.to(chatId).emit("newMessage", populatedMessage);
     } catch (error) {
+      console.error("Error handling message:", error);
+      // Emit error back to sender only
+      socket.emit("error", { message: "Failed to send message" });
     }
   });
 

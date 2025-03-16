@@ -46,7 +46,6 @@ export default function NotificationsPage() {
       });
 
       const result = await response.json();
-      console.log("📝 Server Response:", result);
       if (response.ok) {
         setFriendRequests((prev) => prev.filter((req) => req._id !== id));
         setMessage(`Friend request ${action === "accept" ? "accepted" : "rejected"}.`);

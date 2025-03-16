@@ -226,7 +226,7 @@ const GuestSelection = ({ formData, updateFormData }) => {
           key={index}
           sx={{
             display: "flex",
-            flexDirection: "column",
+            flexDirection: "row",
             alignItems: "flex-start",
             gap: 1,
             mt: 1,
@@ -252,7 +252,7 @@ const GuestSelection = ({ formData, updateFormData }) => {
             <Box
               sx={{
                 display: "flex",
-                flexDirection: "column",
+                flexDirection: "row",
                 alignItems: "flex-start",
                 gap: 1,
                 width: "100%",

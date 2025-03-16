@@ -1,7 +1,10 @@
 import React, { useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import "../styles/login.css";
 
 export default function LoginPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -36,13 +39,18 @@ export default function LoginPage() {
         });
 
         const result = await response.json();
+        
         if (response.ok) {
           localStorage.setItem("user", JSON.stringify(result.user));
           localStorage.setItem("token", result.token);
           setMessage("Login successful! Redirecting...");
+          
+          const from = location.state?.from?.pathname || "/";
+          
+          // Add a small delay to ensure token is stored before redirect
           setTimeout(() => {
-            window.location.href = "/dashboard";
-          }, 1500);
+            navigate(from, { replace: true });
+          }, 100);
         } else {
           setMessage(result.error?.toString() || "Login failed.");
         }

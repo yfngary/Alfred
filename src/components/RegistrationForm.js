@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 export default function RegistrationForm() {
   const [formData, setFormData] = useState({
@@ -15,6 +15,7 @@ export default function RegistrationForm() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [isRegistered, setIsRegistered] = useState(false);
+  const navigate = useNavigate();
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -97,10 +98,10 @@ export default function RegistrationForm() {
         });
 
         const result = await response.json();
-        console.log("Server Response:", result);
-
         if (response.ok) {
-          setIsRegistered(true);
+          localStorage.setItem('token', result.token);
+          localStorage.setItem('user', JSON.stringify(result.user));
+          navigate('/dashboard');
         } else {
           setMessage(result.error?.toString() || "Registration failed.");
           if (result.error === "Email already in use") {
