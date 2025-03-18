@@ -41,21 +41,54 @@ const CreateTrip = () => {
     selectedLocation: null,
     lodgings: [],
     guests: [],
-    relationships: [], // For Guest Relationships
+    relationships: [], // Ensure this is initialized as an empty array
     adults: 4, // Default to 4 adults
     kids: 4, // Default to 4 kids
   });
 
   const updateFormData = (newData) => {
-    setFormData((prevData) => ({ ...prevData, ...newData }));
+    setFormData((prevData) => {
+      const updatedData = { ...prevData, ...newData };
+      return updatedData;
+    });
   };
 
   const handleNext = async () => {
+    // Log data when leaving the relationships step
     if (activeStep === steps.length - 1) {
       // Final step: submit the formData
       setIsSubmitting(true);
       try {
         const token = localStorage.getItem("token");
+        
+        // Prepare the data to send to the server
+        const tripData = {
+          ...formData,
+          guests: formData.guests.map(guest => ({
+            name: guest.name,
+            email: guest.email || '',
+            phone: guest.phone || '',
+            type: guest.type || 'adult'
+          })),
+          guestRelationships: (formData.relationships || []).map(group => ({
+            name: group.name || 'Unnamed Group',
+            level1: (group.level1 || []).map(guest => ({
+              id: guest._id,
+              name: guest.name,
+              email: guest.email || '',
+              phone: guest.phone || '',
+              type: guest.type || 'adult'
+            })),
+            level2: (group.level2 || []).map(guest => ({
+              id: guest._id,
+              name: guest.name,
+              email: guest.email || '',
+              phone: guest.phone || '',
+              type: guest.type || 'adult'
+            }))
+          }))
+        };
+
         const response = await fetch("http://localhost:5001/api/trips", {
           method: "POST",
           headers: { 
@@ -63,7 +96,7 @@ const CreateTrip = () => {
             Authorization: `Bearer ${token}`,
           },
           credentials: "include",
-          body: JSON.stringify(formData),
+          body: JSON.stringify(tripData),
         });
 
         if (response.ok) {

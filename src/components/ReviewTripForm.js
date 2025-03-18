@@ -213,7 +213,8 @@ const ReviewTripForm = ({ formData = {}, updateFormData }) => {
   const invitedGuestCount =
     formData.guests?.filter((guest) => guest.invitationSent)?.length || 0;
   // Get relationships/groups
-  const groups = formData.relationships || [];
+  const groups = formData.relationships || []; 
+  console.log(formData)
   // Initialize section data when edit mode is activated
   const startEdit = (section) => {
     const newEditMode = { ...editMode };
@@ -329,6 +330,11 @@ const ReviewTripForm = ({ formData = {}, updateFormData }) => {
 
     cancelEdit("lodging");
   };
+
+  useEffect(() => {
+    console.log("ReviewTripForm received formData:", formData);
+    console.log("ReviewTripForm relationships:", formData.relationships);
+  }, [formData]);
 
   return (
     <Box sx={{ maxWidth: 1000, mx: "auto", p: 3 }}>
@@ -625,7 +631,7 @@ const ReviewTripForm = ({ formData = {}, updateFormData }) => {
                             xs={12}
                             sm={6}
                             md={4}
-                            key={guest.id || index}
+                            key={guest._id || `guest-${index}-${guest.name || 'unnamed'}`}
                           >
                             <Card variant="outlined" sx={{ mb: 1 }}>
                               <CardContent
@@ -728,7 +734,7 @@ const ReviewTripForm = ({ formData = {}, updateFormData }) => {
                   <Collapse in={expandGroups}>
                     <Box sx={{ mt: 1 }}>
                       {groups.map((group) => (
-                        <Card key={group.id} variant="outlined" sx={{ mb: 2 }}>
+                        <Card key={group.id || `group-${Date.now()}-${Math.random()}`} variant="outlined" sx={{ mb: 2 }}>
                           <CardContent
                             sx={{ py: 1, px: 2, "&:last-child": { pb: 1 } }}
                           >
@@ -743,9 +749,9 @@ const ReviewTripForm = ({ formData = {}, updateFormData }) => {
                                 mt: 1,
                               }}
                             >
-                              {group.level1?.map((member, i) => (
+                              {group.level1?.map((member, index) => (
                                 <Chip
-                                  key={`adult-${i}`}
+                                  key={`${group.id || 'group'}-level1-${member._id || `member-${index}-${member.name || 'unnamed'}`}`}
                                   label={member.name}
                                   size="small"
                                   color="primary"
@@ -753,9 +759,9 @@ const ReviewTripForm = ({ formData = {}, updateFormData }) => {
                                   sx={{ fontSize: "0.75rem" }}
                                 />
                               ))}
-                              {group.level2?.map((member, i) => (
+                              {group.level2?.map((member, index) => (
                                 <Chip
-                                  key={`child-${i}`}
+                                  key={`${group.id || 'group'}-level2-${member._id || `member-${index}-${member.name || 'unnamed'}`}`}
                                   label={member.name}
                                   size="small"
                                   color="secondary"

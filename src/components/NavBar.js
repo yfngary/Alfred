@@ -112,7 +112,6 @@ export default function NavBar({ isOpen, setIsOpen }) {
 
         const data = await response.json();
         if (data && data.trips) {
-          console.log("Trips data:", data.trips);
           setTrips(data.trips);
         }
       } catch (error) {

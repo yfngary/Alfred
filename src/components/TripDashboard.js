@@ -31,6 +31,9 @@ import {
   Badge,
   TextField,
   MenuItem,
+  FormControl,
+  InputLabel,
+  Select,
 } from "@mui/material";
 import {
   CalendarMonth as CalendarIcon,
@@ -74,6 +77,17 @@ const TripDashboard = () => {
   const [userRole, setUserRole] = useState(null);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [openEditDialog, setOpenEditDialog] = useState(false);
+  const [editedTrip, setEditedTrip] = useState(null);
+  const [editLoading, setEditLoading] = useState(false);
+  const [openGuestsDialog, setOpenGuestsDialog] = useState(false);
+  const [editedGuests, setEditedGuests] = useState([]);
+  const [guestEditLoading, setGuestEditLoading] = useState(false);
+  const [newGuestName, setNewGuestName] = useState('');
+  const [groups, setGroups] = useState([]);
+  const [selectedGroup, setSelectedGroup] = useState('');
+  const [newGroupName, setNewGroupName] = useState('');
+  const [openRelationshipsDialog, setOpenRelationshipsDialog] = useState(false);
 
   useEffect(() => {
     const fetchTripDetails = async (tripId) => {
@@ -82,8 +96,6 @@ const TripDashboard = () => {
         const token = localStorage.getItem("token");
         const userStr = localStorage.getItem("user");
         let userId = null;
-        
-        console.log("Raw user data from localStorage:", userStr);
         
         if (userStr) {
           try {
@@ -94,22 +106,11 @@ const TripDashboard = () => {
             } else if (userData.id) {
               userId = userData.id;
             }
-            console.log("Parsed user data:", userData);
           } catch (e) {
             // If JSON parsing fails, try getting the ID directly
             userId = userStr;
-            console.log("Using raw user string as ID:", userId);
           }
         }
-
-        console.log("Final userId:", userId);
-
-        console.log("Auth Debug:", {
-          token: token ? "Present" : "Missing",
-          userId: userId || "Missing",
-          localStorage: Object.keys(localStorage),
-          userStr: userStr ? "Present" : "Missing"
-        });
 
         const response = await fetch(
           `http://localhost:5001/api/trips/${tripId}`,
@@ -143,31 +144,18 @@ const TripDashboard = () => {
           }
         }
 
-        console.log("Role Debug:", {
-          currentUserId: userId,
-          tripOwnerId: tripData.userId,
-          isMatch: userId === tripData.userId || userId === tripData.userId.toString(),
-          rawComparison: `${userId} === ${tripData.userId}`,
-          collaborators: tripData.collaborators || []
-        });
+        console.log("Trip data:", tripData);
 
         setTrip(tripData);
 
         // Set user role - compare both as strings to ensure proper matching
         if (userId && tripData.userId && (userId === tripData.userId || userId === tripData.userId.toString())) {
-          console.log("Setting user as owner - IDs match:", {
-            userId,
-            tripUserId: tripData.userId,
-            comparison: `${userId} === ${tripData.userId}`
-          });
           setUserRole('owner');
         } else {
-          console.log("Checking collaborator role");
           const collaborator = tripData.collaborators?.find(c => 
             c.user._id === userId || c.user._id === userId?.toString()
           );
           const role = collaborator?.role || 'viewer';
-          console.log("Setting user as:", role, "Collaborator found:", !!collaborator);
           setUserRole(role);
         }
 
@@ -184,11 +172,6 @@ const TripDashboard = () => {
       fetchTripDetails(tripId);
     }
   }, [tripId]);
-
-  // Add a debug effect to monitor userRole changes
-  useEffect(() => {
-    console.log("Current user role:", userRole);
-  }, [userRole]);
 
   // Format date helper function
   const formatDate = (dateString) => {
@@ -394,6 +377,285 @@ const TripDashboard = () => {
     } finally {
       setDeleteLoading(false);
       setOpenDeleteDialog(false);
+    }
+  };
+
+  const handleEditTrip = async () => {
+    setEditLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      
+      // Helper function to format date in UTC
+      const formatDateForServer = (dateString) => {
+        // Split the date string into parts
+        const [year, month, day] = dateString.split('-').map(num => parseInt(num, 10));
+        // Create date in UTC (month is 0-based in Date constructor)
+        const date = Date.UTC(year, month - 1, day, 12, 0, 0);
+        return new Date(date).toISOString();
+      };
+
+      // Create a copy of editedTrip with adjusted dates
+      const adjustedTrip = {
+        ...editedTrip,
+        startDate: formatDateForServer(editedTrip.startDate),
+        endDate: formatDateForServer(editedTrip.endDate)
+      };
+
+      const response = await fetch(`http://localhost:5001/api/trips/${tripId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(adjustedTrip)
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update trip');
+      }
+
+      const data = await response.json();
+      // Update the trip state with the response data
+      const updatedTrip = data.trip || data;
+      setTrip(updatedTrip);
+      setOpenEditDialog(false);
+      refreshTrips(); // Refresh trips in NavBar
+    } catch (error) {
+      console.error('Error updating trip:', error);
+      setError(error.message);
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  // Initialize guests and groups when opening the dialog
+  useEffect(() => {
+    if (openGuestsDialog && trip) {
+      // Initialize guests with proper IDs, type, and contact info
+      const guestsWithIds = (trip.guests || []).map(guest => ({
+        ...guest,
+        id: guest._id || guest.id, // Use existing ID or MongoDB _id
+        type: guest.type || 'adult',
+        email: guest.email || '',
+        phone: guest.phone || '',
+        name: guest.name || ''
+      }));
+      setEditedGuests(guestsWithIds);
+
+      // Initialize groups from trip's guestRelationships with proper IDs
+      const initialGroups = (trip.guestRelationships || []).map(group => ({
+        ...group,
+        id: group._id || group.id || `group-${Date.now()}-${Math.random()}`,
+        level1: group.level1.map(guestId => {
+          // Find the guest with this ID in the trip's guests array
+          const guest = trip.guests.find(g => g._id === guestId);
+          return guest ? guest._id : guestId;
+        }),
+        level2: group.level2.map(guestId => {
+          // Find the guest with this ID in the trip's guests array
+          const guest = trip.guests.find(g => g._id === guestId);
+          return guest ? guest._id : guestId;
+        })
+      }));
+      setGroups(initialGroups);
+
+      // Create new group if none exist
+      if (initialGroups.length === 0) {
+        setGroups([{
+          id: `group-${Date.now()}-${Math.random()}`,
+          name: 'New Group',
+          level1: [],
+          level2: []
+        }]);
+      }
+    }
+  }, [openGuestsDialog, trip]);
+
+  // Add handler for updating guest info
+  const handleUpdateGuestInfo = (index, field, value) => {
+    const updatedGuests = [...editedGuests];
+    updatedGuests[index] = {
+      ...updatedGuests[index],
+      [field]: value
+    };
+    setEditedGuests(updatedGuests);
+  };
+
+  // Add handler for removing a guest
+  const handleRemoveGuest = (index) => {
+    const guestToRemove = editedGuests[index];
+    
+    // Remove guest from any groups they're in
+    setGroups(prevGroups => prevGroups.map(group => ({
+      ...group,
+      level1: group.level1.filter(id => id !== guestToRemove.id),
+      level2: group.level2.filter(id => id !== guestToRemove.id)
+    })));
+
+    // Remove guest from editedGuests
+    setEditedGuests(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Update handleAddGuest to include guest type
+  const handleAddGuest = (type = 'adult') => {
+    if (newGuestName.trim()) {
+      const newGuest = {
+        id: `temp-${Date.now()}-${Math.random()}`,
+        name: newGuestName.trim(),
+        email: '',
+        phone: '',
+        type: type
+      };
+      setEditedGuests(prev => [...prev, newGuest]);
+      setNewGuestName('');
+    }
+  };
+
+  // Add handler for updating guest type
+  const handleUpdateGuestType = (index, newType) => {
+    const updatedGuests = [...editedGuests];
+    updatedGuests[index] = {
+      ...updatedGuests[index],
+      type: newType
+    };
+    setEditedGuests(updatedGuests);
+
+    // Remove from any groups since type changed
+    const guestId = updatedGuests[index].id;
+    setGroups(prevGroups => prevGroups.map(group => ({
+      ...group,
+      level1: group.level1.filter(id => id !== guestId),
+      level2: group.level2.filter(id => id !== guestId)
+    })));
+  };
+
+  // Update handleAddToGroup to handle level1/level2 based on guest type
+  const handleAddToGroup = (guestId, groupId) => {
+    const guest = editedGuests.find(g => g.id === guestId);
+    if (!guest) return;
+
+    setGroups(prevGroups => {
+      // Remove guest from all other groups first
+      const updatedGroups = prevGroups.map(group => ({
+        ...group,
+        level1: group.level1.filter(id => id !== guestId),
+        level2: group.level2.filter(id => id !== guestId)
+      }));
+
+      // Add guest to the selected group in the appropriate level
+      return updatedGroups.map(group => {
+        if (group.id === groupId) {
+          if (guest.type === 'adult') {
+            return {
+              ...group,
+              level1: [...group.level1, guestId]
+            };
+          } else {
+            return {
+              ...group,
+              level2: [...group.level2, guestId]
+            };
+          }
+        }
+        return group;
+      });
+    });
+  };
+
+  // Update handleRemoveFromGroup to handle both levels
+  const handleRemoveFromGroup = (guestId, groupId) => {
+    setGroups(prevGroups => prevGroups.map(group => {
+      if (group.id === groupId) {
+        return {
+          ...group,
+          level1: group.level1.filter(id => id !== guestId),
+          level2: group.level2.filter(id => id !== guestId)
+        };
+      }
+      return group;
+    }));
+  };
+
+  // Update handleUpdateGuests to save with the new structure
+  const handleUpdateGuests = async () => {
+    setGuestEditLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+
+      // Clean up the guest data - remove temporary IDs
+      const cleanedGuests = editedGuests.map(({ id, ...guest }) => guest);
+
+      // Clean up the group data while preserving all relationships
+      const cleanedGroups = groups.map(group => ({
+        name: group.name,
+        // For level1 and level2, convert to full guest objects
+        level1: group.level1
+          .filter(id => id && typeof id === 'string' && !id.startsWith('temp-'))
+          .map(guestId => {
+            const guest = editedGuests.find(g => g._id === guestId || g.id === guestId);
+            return guest ? {
+              _id: guest._id || guest.id,
+              name: guest.name,
+              email: guest.email || '',
+              phone: guest.phone || '',
+              type: guest.type || 'adult'
+            } : null;
+          }).filter(Boolean),
+        level2: group.level2
+          .filter(id => id && typeof id === 'string' && !id.startsWith('temp-'))
+          .map(guestId => {
+            const guest = editedGuests.find(g => g._id === guestId || g.id === guestId);
+            return guest ? {
+              _id: guest._id || guest.id,
+              name: guest.name,
+              email: guest.email || '',
+              phone: guest.phone || '',
+              type: guest.type || 'adult'
+            } : null;
+          }).filter(Boolean)
+      })).filter(group => {
+        // Keep groups that have at least one member or already exist in the trip
+        const existingGroup = trip.guestRelationships?.find(g => g.name === group.name);
+        return group.level1.length > 0 || group.level2.length > 0 || existingGroup;
+      });
+
+      // Create an update object that preserves existing trip data
+      const updateData = {
+        ...trip,
+        guests: cleanedGuests,
+        guestRelationships: cleanedGroups
+      };
+
+      // Remove MongoDB-specific fields
+      delete updateData._id;
+      delete updateData.__v;
+      delete updateData.createdAt;
+      delete updateData.updatedAt;
+
+      const response = await fetch(`http://localhost:5001/api/trips/${tripId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(updateData)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update guests');
+      }
+
+      const data = await response.json();
+      const updatedTrip = data.trip || data;
+      setTrip(updatedTrip);
+      setOpenGuestsDialog(false);
+      refreshTrips();
+    } catch (error) {
+      console.error('Error updating guests:', error);
+      setError(error.message);
+    } finally {
+      setGuestEditLoading(false);
     }
   };
 
@@ -637,14 +899,31 @@ const TripDashboard = () => {
           <Grid item xs={12} md={8}>
             <Card elevation={2} sx={{ borderRadius: 2, height: "100%" }}>
               <CardContent>
-                <Typography
-                  variant="h6"
-                  gutterBottom
-                  sx={{ display: "flex", alignItems: "center" }}
-                >
-                  <CalendarIcon sx={{ mr: 1 }} />
-                  Trip Overview
-                </Typography>
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+                  <Typography
+                    variant="h6"
+                    sx={{ display: "flex", alignItems: "center" }}
+                  >
+                    <CalendarIcon sx={{ mr: 1 }} />
+                    Trip Overview
+                  </Typography>
+                  {userRole === 'owner' && (
+                    <IconButton
+                      size="small"
+                      onClick={() => {
+                        setEditedTrip({
+                          tripName: trip.tripName,
+                          startDate: trip.startDate,
+                          endDate: trip.endDate,
+                          location: trip.location || trip.destination
+                        });
+                        setOpenEditDialog(true);
+                      }}
+                    >
+                      <EditIcon />
+                    </IconButton>
+                  )}
+                </Box>
                 <Divider sx={{ my: 2 }} />
                 <Grid container spacing={3}>
                   <Grid item xs={12} sm={6}>
@@ -674,8 +953,7 @@ const TripDashboard = () => {
                       Total Guests
                     </Typography>
                     <Typography variant="body1" sx={{ mb: 2 }}>
-                      {(trip.adults || 0) + (trip.kids || 0)} ({trip.adults || 0}{" "}
-                      adults, {trip.kids || 0} children)
+                      {trip.guests?.length || 0} guests
                     </Typography>
 
                     <Typography variant="body2" color="text.secondary">
@@ -718,14 +996,27 @@ const TripDashboard = () => {
                     <PeopleIcon sx={{ mr: 1 }} />
                     Guests
                   </Typography>
-                  <Button
-                    size="small"
-                    endIcon={<ArrowIcon />}
-                    sx={{ textTransform: "none" }}
-                    onClick={() => navigate(`/trips/${tripId}/guests`)}
-                  >
-                    Manage
-                  </Button>
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => setOpenRelationshipsDialog(true)}
+                      startIcon={<GroupIcon />}
+                    >
+                      View Groups
+                    </Button>
+                    {userRole === 'owner' && (
+                      <IconButton
+                        size="small"
+                        onClick={() => {
+                          setEditedGuests(trip.guests || []);
+                          setOpenGuestsDialog(true);
+                        }}
+                      >
+                        <EditIcon />
+                      </IconButton>
+                    )}
+                  </Box>
                 </Box>
                 <Divider sx={{ mb: 2 }} />
 
@@ -1271,6 +1562,71 @@ const TripDashboard = () => {
           </Grid>
         )}
 
+        {/* Edit Trip Dialog */}
+        <Dialog
+          open={openEditDialog}
+          onClose={() => setOpenEditDialog(false)}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle>Edit Trip Details</DialogTitle>
+          <DialogContent>
+            <Box component="form" sx={{ mt: 2 }}>
+              <Grid container spacing={2}>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Trip Name"
+                    value={editedTrip?.tripName || ''}
+                    onChange={(e) => setEditedTrip({ ...editedTrip, tripName: e.target.value })}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Start Date"
+                    type="date"
+                    value={editedTrip?.startDate?.split('T')[0] || ''}
+                    onChange={(e) => setEditedTrip({ ...editedTrip, startDate: e.target.value })}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="End Date"
+                    type="date"
+                    value={editedTrip?.endDate?.split('T')[0] || ''}
+                    onChange={(e) => setEditedTrip({ ...editedTrip, endDate: e.target.value })}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Location"
+                    value={editedTrip?.location || ''}
+                    onChange={(e) => setEditedTrip({ ...editedTrip, location: e.target.value })}
+                  />
+                </Grid>
+              </Grid>
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setOpenEditDialog(false)} disabled={editLoading}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleEditTrip}
+              variant="contained"
+              disabled={editLoading}
+              startIcon={editLoading ? <CircularProgress size={20} /> : <EditIcon />}
+            >
+              {editLoading ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
         {/* Delete Trip Dialog */}
         <Dialog
           open={openDeleteDialog}
@@ -1299,6 +1655,344 @@ const TripDashboard = () => {
               startIcon={deleteLoading ? <CircularProgress size={20} /> : <DeleteIcon />}
             >
               {deleteLoading ? 'Deleting...' : 'Delete Trip'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Guests Edit Dialog */}
+        <Dialog
+          open={openGuestsDialog}
+          onClose={() => setOpenGuestsDialog(false)}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle>Edit Guests</DialogTitle>
+          <DialogContent>
+            <Box sx={{ mt: 2 }}>
+              {/* Add New Guest Section */}
+              <Box sx={{ mb: 3 }}>
+                <Grid container spacing={2}>
+                  <Grid item xs={7}>
+                    <TextField
+                      fullWidth
+                      label="Guest Name"
+                      value={newGuestName}
+                      onChange={(e) => setNewGuestName(e.target.value)}
+                      placeholder="Enter guest name"
+                      size="small"
+                    />
+                  </Grid>
+                  <Grid item xs={5}>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      <Button
+                        variant="contained"
+                        onClick={() => handleAddGuest('adult')}
+                        disabled={!newGuestName.trim()}
+                        startIcon={<AddIcon />}
+                        sx={{ flex: 1 }}
+                      >
+                        Add Adult
+                      </Button>
+                      <Button
+                        variant="contained"
+                        onClick={() => handleAddGuest('child')}
+                        disabled={!newGuestName.trim()}
+                        startIcon={<AddIcon />}
+                        color="secondary"
+                        sx={{ flex: 1 }}
+                      >
+                        Add Child
+                      </Button>
+                    </Box>
+                  </Grid>
+                </Grid>
+              </Box>
+
+              {/* Guest List */}
+              <Typography variant="h6" gutterBottom>
+                All Guests
+              </Typography>
+              <List>
+                {editedGuests.map((guest, index) => {
+                  // Find which group this guest belongs to by checking both level1 and level2 arrays
+                  const guestGroup = groups.find(g => 
+                    g.level1.includes(guest._id) || g.level2.includes(guest._id)
+                  );
+                  
+                  return (
+                    <ListItem
+                      key={guest.id}
+                      sx={{
+                        flexDirection: 'column',
+                        alignItems: 'stretch',
+                        gap: 2,
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        borderRadius: 1,
+                        mb: 2,
+                        p: 2,
+                        bgcolor: guest.type === 'child' ? 'rgba(156, 39, 176, 0.05)' : 'transparent'
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%' }}>
+                        <Avatar sx={{ bgcolor: stringToColor(guest.name) }}>
+                          {guest.name.charAt(0)}
+                        </Avatar>
+                        <Box sx={{ flexGrow: 1 }}>
+                          <TextField
+                            fullWidth
+                            label="Name"
+                            value={guest.name}
+                            onChange={(e) => handleUpdateGuestInfo(index, 'name', e.target.value)}
+                            size="small"
+                          />
+                        </Box>
+                        <FormControl sx={{ minWidth: 120 }}>
+                          <InputLabel>Type</InputLabel>
+                          <Select
+                            value={guest.type}
+                            onChange={(e) => handleUpdateGuestType(index, e.target.value)}
+                            size="small"
+                            label="Type"
+                          >
+                            <MenuItem value="adult">Adult</MenuItem>
+                            <MenuItem value="child">Child</MenuItem>
+                          </Select>
+                        </FormControl>
+                        <FormControl sx={{ minWidth: 150 }}>
+                          <InputLabel>Group</InputLabel>
+                          <Select
+                            value={guestGroup?.id || ''}
+                            onChange={(e) => {
+                              const newGroupId = e.target.value;
+                              if (newGroupId) {
+                                handleAddToGroup(guest._id, newGroupId);
+                              } else if (guestGroup) {
+                                handleRemoveFromGroup(guest._id, guestGroup.id);
+                              }
+                            }}
+                            size="small"
+                            label="Group"
+                          >
+                            <MenuItem value="">
+                              <em>None</em>
+                            </MenuItem>
+                            {groups.map((group) => (
+                              <MenuItem key={group.id} value={group.id}>
+                                {group.name}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                        <IconButton
+                          edge="end"
+                          aria-label="delete"
+                          onClick={() => handleRemoveGuest(index)}
+                          color="error"
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </Box>
+                      <Grid container spacing={2}>
+                        <Grid item xs={12} sm={6}>
+                          <TextField
+                            fullWidth
+                            label="Email"
+                            value={guest.email || ''}
+                            onChange={(e) => handleUpdateGuestInfo(index, 'email', e.target.value)}
+                            type="email"
+                            size="small"
+                          />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                          <TextField
+                            fullWidth
+                            label="Phone"
+                            value={guest.phone || ''}
+                            onChange={(e) => handleUpdateGuestInfo(index, 'phone', e.target.value)}
+                            type="tel"
+                            size="small"
+                          />
+                        </Grid>
+                      </Grid>
+                    </ListItem>
+                  );
+                })}
+              </List>
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setOpenGuestsDialog(false)} disabled={guestEditLoading}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpdateGuests}
+              variant="contained"
+              disabled={guestEditLoading}
+              startIcon={guestEditLoading ? <CircularProgress size={20} /> : <EditIcon />}
+            >
+              {guestEditLoading ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Guest Relationships Dialog */}
+        <Dialog
+          open={openRelationshipsDialog}
+          onClose={() => setOpenRelationshipsDialog(false)}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle>Guest Groups & Relationships</DialogTitle>
+          <DialogContent>
+            {trip.guestRelationships && trip.guestRelationships.length > 0 ? (
+              <Box sx={{ mt: 2 }}>
+                {trip.guestRelationships.map((group) => {
+                  // Find guests for each level
+                  const level1Guests = group.level1
+                    .map(guestObj => {
+                      // Handle both formats - if it's already a guest object with name
+                      if (guestObj && guestObj.name) {
+                        return guestObj;
+                      }
+                      // Otherwise if it's an ID string, find the guest in the trip.guests array
+                      const guestId = typeof guestObj === 'string' ? guestObj : guestObj._id || guestObj.id;
+                      return trip.guests.find(g => g._id === guestId || g._id.toString() === guestId);
+                    })
+                    .filter(Boolean);
+                  
+                  const level2Guests = group.level2
+                    .map(guestObj => {
+                      // Handle both formats - if it's already a guest object with name
+                      if (guestObj && guestObj.name) {
+                        return guestObj;
+                      }
+                      // Otherwise if it's an ID string, find the guest in the trip.guests array
+                      const guestId = typeof guestObj === 'string' ? guestObj : guestObj._id || guestObj.id;
+                      return trip.guests.find(g => g._id === guestId || g._id.toString() === guestId);
+                    })
+                    .filter(Boolean);
+
+                  return (
+                    <Paper
+                      key={group._id}
+                      elevation={3}
+                      sx={{
+                        p: 2,
+                        mb: 2,
+                        bgcolor: '#f5f5f5',
+                        border: '1px solid',
+                        borderColor: 'primary.main',
+                        borderRadius: 2
+                      }}
+                    >
+                      <Typography variant="h6" gutterBottom color="primary">
+                        {group.name}
+                      </Typography>
+                      
+                      <Grid container spacing={2}>
+                        {/* Adults Section */}
+                        <Grid item xs={12} md={6}>
+                          <Paper
+                            sx={{
+                              p: 2,
+                              bgcolor: '#e3f2fd',
+                              border: '1px solid #90caf9'
+                            }}
+                          >
+                            <Typography variant="subtitle1" gutterBottom>
+                              Adults
+                            </Typography>
+                            <Stack spacing={1}>
+                              {level1Guests.map((guest) => (
+                                <Chip
+                                  key={guest._id}
+                                  avatar={
+                                    <Avatar sx={{ bgcolor: stringToColor(guest.name) }}>
+                                      {guest.name.charAt(0)}
+                                    </Avatar>
+                                  }
+                                  label={guest.name}
+                                  sx={{ justifyContent: 'flex-start' }}
+                                />
+                              ))}
+                              {level1Guests.length === 0 && (
+                                <Typography variant="body2" color="text.secondary">
+                                  No adults in this group
+                                </Typography>
+                              )}
+                            </Stack>
+                          </Paper>
+                        </Grid>
+
+                        {/* Children Section */}
+                        <Grid item xs={12} md={6}>
+                          <Paper
+                            sx={{
+                              p: 2,
+                              bgcolor: '#fce4ec',
+                              border: '1px solid #f48fb1'
+                            }}
+                          >
+                            <Typography variant="subtitle1" gutterBottom>
+                              Children
+                            </Typography>
+                            <Stack spacing={1}>
+                              {level2Guests.map((guest) => (
+                                <Chip
+                                  key={guest._id}
+                                  avatar={
+                                    <Avatar sx={{ bgcolor: stringToColor(guest.name) }}>
+                                      {guest.name.charAt(0)}
+                                    </Avatar>
+                                  }
+                                  label={guest.name}
+                                  sx={{ justifyContent: 'flex-start' }}
+                                />
+                              ))}
+                              {level2Guests.length === 0 && (
+                                <Typography variant="body2" color="text.secondary">
+                                  No children in this group
+                                </Typography>
+                              )}
+                            </Stack>
+                          </Paper>
+                        </Grid>
+                      </Grid>
+                    </Paper>
+                  );
+                })}
+              </Box>
+            ) : (
+              <Box sx={{ 
+                py: 4, 
+                display: 'flex', 
+                flexDirection: 'column', 
+                alignItems: 'center',
+                gap: 2 
+              }}>
+                <Typography color="text.secondary">
+                  No guest groups have been created yet.
+                </Typography>
+                {userRole === 'owner' && (
+                  <Button
+                    variant="contained"
+                    onClick={() => {
+                      setOpenRelationshipsDialog(false);
+                      setEditedGuests(trip.guests || []);
+                      setOpenGuestsDialog(true);
+                    }}
+                    startIcon={<EditIcon />}
+                  >
+                    Edit Guest Groups
+                  </Button>
+                )}
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setOpenRelationshipsDialog(false)}>
+              Close
             </Button>
           </DialogActions>
         </Dialog>

@@ -34,7 +34,28 @@ const GuestSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String },
   phone: { type: String },
+  type: { type: String, enum: ['adult', 'child'], default: 'adult' },
   relationship: { type: String },
+});
+
+const GuestRelationshipSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  level1: [{
+    id: { type: String },
+    _id: { type: String },
+    name: { type: String },
+    email: { type: String },
+    phone: { type: String },
+    type: { type: String, enum: ['adult', 'child'], default: 'adult' }
+  }],
+  level2: [{
+    id: { type: String },
+    _id: { type: String },
+    name: { type: String },
+    email: { type: String },
+    phone: { type: String },
+    type: { type: String, enum: ['adult', 'child'], default: 'adult' }
+  }]
 });
 
 const LodgingSchema = new mongoose.Schema({
@@ -51,6 +72,7 @@ const TripSchema = new mongoose.Schema({
   endDate: Date,
   lodgings: [LodgingSchema],
   guests: [GuestSchema],
+  guestRelationships: [GuestRelationshipSchema], // Add guest relationships
   experiences: [experienceSchema],
   chat: { type: mongoose.Schema.Types.ObjectId, ref: "Chat", required: true },
   // Add access control fields

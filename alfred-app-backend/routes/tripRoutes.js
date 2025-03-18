@@ -42,24 +42,100 @@ const upload = multer({
 // POST: Create a new trip
 router.post("/trips", authMiddleware, async (req, res) => {
   try {
-    const { tripName, destination, location, startDate, endDate, lodgings, guests } = req.body;
+    const { 
+      tripName, 
+      destination, 
+      location, 
+      startDate, 
+      endDate, 
+      lodgings, 
+      guests,
+      guestRelationships 
+    } = req.body;
+
+    // Log the incoming data for debugging
+    console.log("Creating new trip with data:", {
+      tripName,
+      destination, 
+      location,
+      guestsCount: guests?.length,
+      relationshipsCount: guestRelationships?.length
+    });
 
     // Create a chat for the trip with just the creator initially
     const newChat = new Chat({
-      members: [req.user.id], // Start with just the trip creator
-      messages: [], // Empty messages at creation
+      members: [req.user.id],
+      messages: [],
     });
     await newChat.save();
 
-    // Create the trip with the chat reference
+    // Process guests to ensure they have proper structure
+    const processedGuests = guests.map(guest => ({
+      name: guest.name,
+      email: guest.email || '',
+      phone: guest.phone || '',
+      type: guest.type || 'adult'
+    }));
+
+    // Process guest relationships to ensure proper structure with additional error handling
+    let processedRelationships = [];
+    try {
+      processedRelationships = guestRelationships?.map(group => {
+        if (!group) {
+          console.warn("Received null or undefined group in guestRelationships");
+          return null;
+        }
+        
+        return {
+          name: group.name || "Unnamed Group",
+          level1: (group.level1 || []).map(guest => {
+            // Handle both string IDs and full guest objects
+            if (typeof guest === 'string') {
+              return guest;
+            }
+            // For full objects, ensure they have all required fields
+            return {
+              id: guest.id || guest._id || "",
+              _id: guest._id || guest.id || "",
+              name: guest.name || "Unnamed Guest",
+              email: guest.email || '',
+              phone: guest.phone || '',
+              type: guest.type || 'adult'
+            };
+          }),
+          level2: (group.level2 || []).map(guest => {
+            // Handle both string IDs and full guest objects
+            if (typeof guest === 'string') {
+              return guest;
+            }
+            // For full objects, ensure they have all required fields
+            return {
+              id: guest.id || guest._id || "",
+              _id: guest._id || guest.id || "",
+              name: guest.name || "Unnamed Guest",
+              email: guest.email || '',
+              phone: guest.phone || '',
+              type: guest.type || 'adult'
+            };
+          })
+        };
+      }).filter(Boolean) || [];
+    } catch (relationshipError) {
+      console.error("Error processing relationships:", relationshipError);
+      console.error("Relationship data:", JSON.stringify(guestRelationships));
+      processedRelationships = []; // Fallback to empty array if processing fails
+    }
+
+    // Create the trip with the chat reference and guest relationships
     const newTrip = new Trip({
       userId: req.user.id,
       tripName,
-      destination: destination || location, // Use either destination or location field
+      destination: destination || location,
       startDate,
       endDate,
       lodgings: lodgings || [],
-      guests: guests || [],
+      guests: processedGuests,
+      guestRelationships: processedRelationships,
       chat: newChat._id,
     });
 
@@ -74,6 +150,23 @@ router.post("/trips", authMiddleware, async (req, res) => {
     });
   } catch (error) {
     console.error("Error creating trip:", error);
+    
+    // Provide more detailed error information
+    if (error.name === 'ValidationError') {
+      console.error("Validation error details:", error.errors);
+      return res.status(400).json({ 
+        error: "Validation error", 
+        details: Object.keys(error.errors).map(key => ({
+          field: key,
+          message: error.errors[key].message
+        }))
+      });
+    }
+    
+    if (error.name === 'MongoServerError' && error.code === 11000) {
+      return res.status(409).json({ error: "Duplicate key error" });
+    }
+    
     res.status(500).json({ error: "Server error" });
   }
 });

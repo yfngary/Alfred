@@ -35,8 +35,12 @@ const GuestSelection = ({ formData, updateFormData }) => {
   const [showWarning, setShowWarning] = useState(false);
 
   useEffect(() => {
-  
-    const guests = adultNames.concat(childNames);
+    const guests = adultNames.concat(childNames).map((guest, index) => ({
+      name: guest.name,
+      email: guest.contactType === 'Email' ? guest.contact : '',
+      phone: guest.contactType === 'Phone' ? guest.contact : '',
+      type: index < adults ? 'adult' : 'child'  // Determine type based on array position
+    }));
 
     updateFormData({...formData, adults, kids, guests });
   }, [adults, kids, adultNames, childNames]);

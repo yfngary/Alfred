@@ -16,169 +16,337 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions
+  DialogActions,
+  Alert,
+  Snackbar
 } from "@mui/material";
 import PersonRemoveIcon from '@mui/icons-material/PersonRemove';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 
+// Helper function to generate unique IDs
+const generateId = () => `id-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
 const GuestRelationship = ({ formData, updateFormData }) => {
-  // Determine number of adults and kids.
-  const numAdults = formData.adults || 0;
-  const numKids = formData.kids || 0;
-
-  // Build the initial guest list.
-  const initialGuests =
-    formData.guests && formData.guests.length > 0
-      ? formData.guests
-      : [
-          ...Array.from({ length: numAdults }, (_, i) => ({
-            id: `adult-${i}`,
-            name: formData.adultNames?.[i]?.name || `Adult ${i + 1}`,
-            type: "adult"
-          })),
-          ...Array.from({ length: numKids }, (_, i) => ({
-            id: `child-${i}`,
-            name: formData.childNames?.[i]?.name || `Child ${i + 1}`,
-            type: "child"
-          })),
-        ];
-
-  // State management
-  const [availableGuests, setAvailableGuests] = useState(initialGuests);
-  const [groups, setGroups] = useState(formData.relationships || []);
-  const [groupName, setGroupName] = useState("");
+  
+  // Local state management 
+  const [guests, setGuests] = useState([]);
+  const [availableGuests, setAvailableGuests] = useState([]);
+  const [relationshipGroups, setRelationshipGroups] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState("");
   const [selectedRole, setSelectedRole] = useState("level1");
+  const [newGroupName, setNewGroupName] = useState("");
+  const [error, setError] = useState(null);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [lastSyncedRelationships, setLastSyncedRelationships] = useState([]);
   
-  // New state for editing group name
+  // Modal states
   const [editGroupDialog, setEditGroupDialog] = useState(false);
   const [editingGroup, setEditingGroup] = useState(null);
-  const [newGroupName, setNewGroupName] = useState("");
-  
-  // New state for delete confirmation
+  const [editedGroupName, setEditedGroupName] = useState("");
   const [deleteDialog, setDeleteDialog] = useState(false);
   const [groupToDelete, setGroupToDelete] = useState(null);
 
-  // Get all assigned guests (those in groups)
-  const getAllAssignedGuests = () => {
-    let assignedGuests = [];
-    groups.forEach(group => {
-      assignedGuests = [...assignedGuests, ...group.level1, ...group.level2];
-    });
-    return assignedGuests;
-  };
-
-  // Whenever availableGuests or groups change, update the parent form data.
+  // *** CRITICAL FIX: Only initialize ONCE ***
   useEffect(() => {
-    const allGuests = [...availableGuests, ...getAllAssignedGuests()];
-    updateFormData({ 
-      ...formData, 
-      guests: allGuests, 
-      relationships: groups 
-    });
-  }, [availableGuests, groups]);
-
-  // Create a new group.
-  const createGroup = () => {
-    if (!groupName.trim()) return;
-    const newGroup = {
-      id: `group-${Date.now()}`,
-      name: groupName,
-      level1: [],
-      level2: []
-    };
-    setGroups(prev => [...prev, newGroup]);
-    setGroupName("");
-  };
-
-  // When a guest is clicked, add them to the chosen group and role.
-  const handleGuestClick = (guest) => {
-    if (!selectedGroup) {
-      alert("Please select a group first.");
+    // Skip if already initialized or if formData is empty
+    if (isInitialized) {
       return;
     }
     
-    // Find the group to update.
-    const updatedGroups = groups.map((group) => {
+    // Create initial guests list
+    let initialGuests = [];
+    
+    if (formData.guests && formData.guests.length > 0) {
+      initialGuests = formData.guests.map(guest => ({
+        ...guest,
+        _id: guest._id || generateId() // Ensure each guest has an ID
+      }));
+    } 
+    else if (formData.adults > 0 || formData.kids > 0) {
+      // Generate adult guests
+      const adultGuests = Array.from({ length: formData.adults || 0 }, (_, i) => ({
+        _id: generateId(),
+        name: formData.adultNames?.[i]?.name || `adult-${i + 1}`,
+        type: "adult",
+        email: formData.adultNames?.[i]?.email || "",
+        phone: formData.adultNames?.[i]?.phone || ""
+      }));
+      
+      // Generate child guests
+      const kidGuests = Array.from({ length: formData.kids || 0 }, (_, i) => ({
+        _id: generateId(),
+        name: formData.childNames?.[i]?.name || `child-${i + 1}`,
+        type: "child",
+        email: formData.childNames?.[i]?.email || "",
+        phone: formData.childNames?.[i]?.phone || ""
+      }));
+      
+      initialGuests = [...adultGuests, ...kidGuests];
+    }
+    
+    setGuests(initialGuests);
+    
+    // Initialize groups if any exist in formData
+    let initialGroups = [];
+    if (formData.relationships && formData.relationships.length > 0) {
+      
+      initialGroups = formData.relationships.map(rel => {
+        const groupId = rel.id || generateId();
+        
+        // Map guest IDs to actual guest objects
+        const level1Guests = Array.isArray(rel.level1) ? rel.level1
+          .map(guestId => {
+            const guest = initialGuests.find(g => g._id === guestId);
+            return guest ? { ...guest } : null;
+          })
+          .filter(Boolean) : [];
+        
+        const level2Guests = Array.isArray(rel.level2) ? rel.level2
+          .map(guestId => {
+            const guest = initialGuests.find(g => g._id === guestId);
+            return guest ? { ...guest } : null;
+          })
+          .filter(Boolean) : [];
+        
+        return {
+          id: groupId,
+          name: rel.name,
+          level1: level1Guests,
+          level2: level2Guests
+        };
+      });
+      
+      setRelationshipGroups(initialGroups);
+      setLastSyncedRelationships(JSON.stringify(initialGroups));
+    }
+    
+    // Calculate initial available guests
+    const assignedIds = new Set();
+    initialGroups.forEach(group => {
+      group.level1.forEach(guest => guest && guest._id && assignedIds.add(guest._id));
+      group.level2.forEach(guest => guest && guest._id && assignedIds.add(guest._id));
+    });
+    
+    const initialAvailable = initialGuests.filter(guest => 
+      guest && guest._id && !assignedIds.has(guest._id)
+    );
+    
+    setAvailableGuests(initialAvailable);
+    
+    // Mark as initialized to prevent re-initialization
+    setIsInitialized(true);
+  }, [formData, isInitialized]);
+
+  // Updated effect to filter available guests
+  useEffect(() => {
+    // Skip if not initialized yet
+    if (!isInitialized) return;
+    
+    // Get all assigned guests (those in groups)
+    const assignedGuestIds = new Set();
+    
+    relationshipGroups.forEach(group => {
+      if (Array.isArray(group.level1)) {
+        group.level1.forEach(guest => {
+          if (guest && guest._id) assignedGuestIds.add(guest._id);
+        });
+      }
+      
+      if (Array.isArray(group.level2)) {
+        group.level2.forEach(guest => {
+          if (guest && guest._id) assignedGuestIds.add(guest._id);
+        });
+      }
+    });
+    
+    // Filter out assigned guests to get available ones
+    const available = guests.filter(guest => {
+      return guest && guest._id && !assignedGuestIds.has(guest._id);
+    });
+    
+    setAvailableGuests(available);
+  }, [guests, relationshipGroups, isInitialized]);
+
+  // Modified sync effect to ensure proper data structure
+  useEffect(() => {
+    // Skip if not initialized
+    if (!isInitialized) return;
+    
+    // Format relationships properly
+    const formattedRelationships = relationshipGroups.map(group => {
+      return {
+        name: group.name,
+        level1: Array.isArray(group.level1) 
+          ? group.level1.map(guest => ({ 
+              _id: guest._id,
+              name: guest.name,
+              email: guest.email || '',
+              phone: guest.phone || '',
+              type: guest.type || 'adult'
+            }))
+          : [],
+        level2: Array.isArray(group.level2)
+          ? group.level2.map(guest => ({
+              _id: guest._id,
+              name: guest.name,
+              email: guest.email || '',
+              phone: guest.phone || '',
+              type: guest.type || 'adult'
+            }))
+          : []
+      };
+    });
+    
+    // Update parent form data directly
+    updateFormData({
+      ...formData,
+      relationships: formattedRelationships
+    });
+    
+  }, [relationshipGroups, isInitialized]);
+
+  // Add an explicit save function that's called when the component unmounts
+  useEffect(() => {
+    return () => {
+      if (isInitialized && relationshipGroups.length > 0) {
+        
+        const finalRelationships = relationshipGroups.map(group => ({
+          name: group.name,
+          level1: Array.isArray(group.level1) 
+            ? group.level1.map(guest => ({ 
+                _id: guest._id,
+                name: guest.name, 
+                email: guest.email || '', 
+                phone: guest.phone || '',
+                type: guest.type || 'adult'
+              }))
+            : [],
+          level2: Array.isArray(group.level2)
+            ? group.level2.map(guest => ({
+                _id: guest._id,
+                name: guest.name,
+                email: guest.email || '',
+                phone: guest.phone || '',
+                type: guest.type || 'adult'
+              }))
+            : []
+        }));
+        
+        // Final direct update to parent
+        updateFormData(currentFormData => ({
+          ...currentFormData,
+          relationships: finalRelationships
+        }));
+      }
+    };
+  }, [isInitialized, relationshipGroups, updateFormData]);
+
+  // Create a new group
+  const handleCreateGroup = () => {
+    if (!newGroupName.trim()) {
+      setError("Please enter a group name");
+      return;
+    }
+
+    const newGroup = {
+      id: generateId(),
+      name: newGroupName.trim(),
+      level1: [],
+      level2: []
+    };
+
+    setRelationshipGroups(prev => [...prev, newGroup]);
+    setNewGroupName("");
+  };
+
+  // Fixed handler for adding guests
+  const handleAddGuestToGroup = (guest) => {
+    
+    if (!selectedGroup) {
+      setError("Please select a group first");
+      return;
+    }
+
+    // Find the target group
+    const targetGroup = relationshipGroups.find(g => g.id === selectedGroup);
+    if (!targetGroup) {
+      setError("Selected group not found");
+      return;
+    }
+
+    // Create a deep copy of the guest to avoid reference issues
+    const guestCopy = JSON.parse(JSON.stringify(guest));
+    
+    // Create updated groups array with the new guest added
+    const updatedGroups = relationshipGroups.map(group => {
       if (group.id === selectedGroup) {
         return {
           ...group,
-          [selectedRole]: [...group[selectedRole], guest]
+          [selectedRole]: [...(group[selectedRole] || []), guestCopy]
         };
       }
       return group;
     });
     
-    // Remove ONLY the selected guest from availableGuests.
-    const updatedAvailable = availableGuests.filter(g => g.name !== guest.name);
-    setGroups(updatedGroups);
-    setAvailableGuests(updatedAvailable);
+    setRelationshipGroups(updatedGroups);
   };
 
-  // Remove a guest from a group and return them to available
-  const removeGuestFromGroup = (groupId, roleLevel, guestName) => {
-    // Find the group and guest
-    const targetGroup = groups.find(g => g.id === groupId);
-    const removedGuest = targetGroup[roleLevel].find(g => g.name === guestName);
-    
-    // Remove the guest from the group
-    const updatedGroups = groups.map(group => {
+  // Remove a guest from a group
+  const handleRemoveGuestFromGroup = (groupId, role, guestId) => {
+    const updatedGroups = relationshipGroups.map(group => {
       if (group.id === groupId) {
         return {
           ...group,
-          [roleLevel]: group[roleLevel].filter(g => g.name !== guestName)
+          [role]: group[role].filter(guest => guest._id !== guestId)
         };
       }
       return group;
     });
-    
-    // Add the guest back to available
-    setAvailableGuests(prev => [...prev, removedGuest]);
-    setGroups(updatedGroups);
+
+    setRelationshipGroups(updatedGroups);
   };
 
-  // Handle opening the edit group dialog
-  const handleEditGroup = (group) => {
+  // Open the edit group dialog
+  const handleEditGroupClick = (group) => {
     setEditingGroup(group);
-    setNewGroupName(group.name);
+    setEditedGroupName(group.name);
     setEditGroupDialog(true);
   };
 
-  // Save edited group name
-  const saveGroupName = () => {
-    if (!newGroupName.trim()) return;
-    
-    const updatedGroups = groups.map(group => {
+  // Save the edited group name
+  const handleSaveGroupName = () => {
+    if (!editedGroupName.trim()) {
+      setError("Group name cannot be empty");
+      return;
+    }
+
+    const updatedGroups = relationshipGroups.map(group => {
       if (group.id === editingGroup.id) {
-        return { ...group, name: newGroupName };
+        return { ...group, name: editedGroupName.trim() };
       }
       return group;
     });
-    
-    setGroups(updatedGroups);
+
+    setRelationshipGroups(updatedGroups);
     setEditGroupDialog(false);
   };
 
-  // Handle delete group confirmation
-  const confirmDeleteGroup = (group) => {
+  // Open the delete group confirmation dialog
+  const handleDeleteGroupClick = (group) => {
     setGroupToDelete(group);
     setDeleteDialog(true);
   };
 
-  // Delete a group and return all its members to available
-  const deleteGroup = () => {
-    const groupToRemove = groups.find(g => g.id === groupToDelete.id);
-    const guestsToReturn = [...groupToRemove.level1, ...groupToRemove.level2];
+  // Delete a group and return its guests to available
+  const handleDeleteGroup = () => {
+    setRelationshipGroups(relationshipGroups.filter(group => group.id !== groupToDelete.id));
+    setDeleteDialog(false);
     
-    setAvailableGuests(prev => [...prev, ...guestsToReturn]);
-    setGroups(prev => prev.filter(g => g.id !== groupToDelete.id));
-    
+    // Reset selected group if it was the deleted one
     if (selectedGroup === groupToDelete.id) {
       setSelectedGroup("");
     }
-    
-    setDeleteDialog(false);
   };
 
   return (
@@ -190,20 +358,32 @@ const GuestRelationship = ({ formData, updateFormData }) => {
         Organize Guest Relationships
       </Typography>
 
+      {/* Error Snackbar */}
+      <Snackbar 
+        open={!!error} 
+        autoHideDuration={6000} 
+        onClose={() => setError(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert onClose={() => setError(null)} severity="error" sx={{ width: '100%' }}>
+          {error}
+        </Alert>
+      </Snackbar>
+
       {/* Group Creation */}
       <Box sx={{ display: "flex", justifyContent: "center", gap: 2 }}>
         <TextField 
           label="Group Name" 
           variant="outlined" 
-          value={groupName} 
-          onChange={(e) => setGroupName(e.target.value)}
+          value={newGroupName} 
+          onChange={(e) => setNewGroupName(e.target.value)}
           InputLabelProps={{ style: { color: "black" } }}
           sx={{ input: { color: "black" } }}
         />
         <Button 
           variant="contained" 
-          onClick={createGroup}
-          disabled={!groupName.trim()}
+          onClick={handleCreateGroup}
+          disabled={!newGroupName.trim()}
         >
           Create Group
         </Button>
@@ -219,7 +399,7 @@ const GuestRelationship = ({ formData, updateFormData }) => {
             label="Select Group"
             onChange={(e) => setSelectedGroup(e.target.value)}
           >
-            {groups.map((group) => (
+            {relationshipGroups.map((group) => (
               <MenuItem key={group.id} value={group.id}>
                 {group.name}
               </MenuItem>
@@ -275,8 +455,8 @@ const GuestRelationship = ({ formData, updateFormData }) => {
             ) : (
               availableGuests.map((guest) => (
                 <Paper
-                  key={guest.id}
-                  onClick={() => handleGuestClick(guest)}
+                  key={guest._id}
+                  onClick={() => handleAddGuestToGroup(guest)}
                   sx={{
                     p: 1,
                     backgroundColor: guest.type === "adult" ? "#e3f2fd" : "#fff3e0",
@@ -305,13 +485,13 @@ const GuestRelationship = ({ formData, updateFormData }) => {
         Guest Groups
       </Typography>
       
-      {groups.length === 0 ? (
+      {relationshipGroups.length === 0 ? (
         <Typography sx={{ color: "gray", textAlign: "center" }}>
           No groups created. Create a group and then assign guests.
         </Typography>
       ) : (
         <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-          {groups.map((group) => (
+          {relationshipGroups.map((group) => (
             <Paper
               key={group.id}
               elevation={3}
@@ -337,7 +517,7 @@ const GuestRelationship = ({ formData, updateFormData }) => {
                   <Tooltip title="Edit Group Name">
                     <IconButton 
                       size="small" 
-                      onClick={() => handleEditGroup(group)}
+                      onClick={() => handleEditGroupClick(group)}
                       sx={{ color: "#2196f3" }}
                     >
                       <EditIcon />
@@ -346,7 +526,7 @@ const GuestRelationship = ({ formData, updateFormData }) => {
                   <Tooltip title="Delete Group">
                     <IconButton 
                       size="small" 
-                      onClick={() => confirmDeleteGroup(group)}
+                      onClick={() => handleDeleteGroupClick(group)}
                       sx={{ color: "#f44336" }}
                     >
                       <DeleteIcon />
@@ -386,7 +566,7 @@ const GuestRelationship = ({ formData, updateFormData }) => {
                       <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
                         {group.level1.map((guest) => (
                           <Paper
-                            key={guest.id}
+                            key={guest._id}
                             sx={{
                               p: 1,
                               backgroundColor: "#e3f2fd",
@@ -401,7 +581,7 @@ const GuestRelationship = ({ formData, updateFormData }) => {
                             <Tooltip title="Remove from group">
                               <IconButton 
                                 size="small"
-                                onClick={() => removeGuestFromGroup(group.id, "level1", guest.name)}
+                                onClick={() => handleRemoveGuestFromGroup(group.id, "level1", guest._id)}
                                 sx={{ color: "#f44336" }}
                               >
                                 <PersonRemoveIcon fontSize="small" />
@@ -444,7 +624,7 @@ const GuestRelationship = ({ formData, updateFormData }) => {
                       <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
                         {group.level2.map((guest) => (
                           <Paper
-                            key={guest.id}
+                            key={guest._id}
                             sx={{
                               p: 1,
                               backgroundColor: "#fff",
@@ -459,7 +639,7 @@ const GuestRelationship = ({ formData, updateFormData }) => {
                             <Tooltip title="Remove from group">
                               <IconButton 
                                 size="small"
-                                onClick={() => removeGuestFromGroup(group.id, "level2", guest.name)}
+                                onClick={() => handleRemoveGuestFromGroup(group.id, "level2", guest._id)}
                                 sx={{ color: "#f44336" }}
                               >
                                 <PersonRemoveIcon fontSize="small" />
@@ -487,13 +667,15 @@ const GuestRelationship = ({ formData, updateFormData }) => {
             label="Group Name"
             fullWidth
             variant="outlined"
-            value={newGroupName}
-            onChange={(e) => setNewGroupName(e.target.value)}
+            value={editedGroupName}
+            onChange={(e) => setEditedGroupName(e.target.value)}
           />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setEditGroupDialog(false)}>Cancel</Button>
-          <Button onClick={saveGroupName} variant="contained" color="primary">Save</Button>
+          <Button onClick={handleSaveGroupName} variant="contained" color="primary">
+            Save
+          </Button>
         </DialogActions>
       </Dialog>
 
@@ -507,7 +689,9 @@ const GuestRelationship = ({ formData, updateFormData }) => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteDialog(false)}>Cancel</Button>
-          <Button onClick={deleteGroup} variant="contained" color="error">Delete</Button>
+          <Button onClick={handleDeleteGroup} variant="contained" color="error">
+            Delete
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>

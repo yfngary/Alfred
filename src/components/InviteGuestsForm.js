@@ -80,9 +80,7 @@ const InviteGuestsPage = ({ formData, updateFormData }) => {
 
   // Check if a guest has the required contact info for the selected invitation method
   const hasRequiredContactInfo = (guest) => {
-    // For debugging
-    console.log("Checking guest:", guest);
-
+    
     if (inviteMethod === "email") {
       // Try different possible locations where email might be stored
       return !!(
