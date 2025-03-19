@@ -999,23 +999,12 @@ const TripDashboard = () => {
                   <Box sx={{ display: 'flex', gap: 1 }}>
                     <Button
                       size="small"
-                      variant="outlined"
-                      onClick={() => setOpenRelationshipsDialog(true)}
-                      startIcon={<GroupIcon />}
+                      variant="contained"
+                      onClick={() => navigate(`/trips/${tripId}/guests`)}
+                      startIcon={<EditIcon />}
                     >
-                      View Groups
+                      Manage Guests
                     </Button>
-                    {userRole === 'owner' && (
-                      <IconButton
-                        size="small"
-                        onClick={() => {
-                          setEditedGuests(trip.guests || []);
-                          setOpenGuestsDialog(true);
-                        }}
-                      >
-                        <EditIcon />
-                      </IconButton>
-                    )}
                   </Box>
                 </Box>
                 <Divider sx={{ mb: 2 }} />
@@ -1070,13 +1059,23 @@ const TripDashboard = () => {
                     </Box>
                   </>
                 ) : (
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ fontStyle: "italic", textAlign: "center" }}
-                  >
-                    No guests added yet
-                  </Typography>
+                  <Box sx={{ textAlign: 'center', py: 2 }}>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ fontStyle: "italic", mb: 2 }}
+                    >
+                      No guests added yet
+                    </Typography>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={() => navigate(`/trips/${tripId}/guests`)}
+                      startIcon={<AddIcon />}
+                    >
+                      Add Guests
+                    </Button>
+                  </Box>
                 )}
               </CardContent>
             </Card>
@@ -1239,27 +1238,151 @@ const TripDashboard = () => {
             </Card>
           </Grid>
 
-          {/* Quick Access Links */}
+          {/* Lodging Section */}
           <Grid item xs={12}>
+            <Card elevation={2} sx={{ borderRadius: 2, mb: 3 }}>
+              <CardContent>
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    mb: 2,
+                  }}
+                >
+                  <Typography
+                    variant="h6"
+                    sx={{ display: "flex", alignItems: "center" }}
+                  >
+                    <HotelIcon sx={{ mr: 1 }} />
+                    Lodging
+                  </Typography>
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    startIcon={<AddIcon />}
+                    onClick={() => navigate(`/trips/${tripId}/lodging`)}
+                    size="small"
+                  >
+                    Add Lodging
+                  </Button>
+                </Box>
+
+                {trip.lodgings && trip.lodgings.length > 0 ? (
+                  <List>
+                    {trip.lodgings.slice(0, 3).map((lodging) => (
+                      <ListItem
+                        key={lodging._id}
+                        sx={{
+                          mb: 1,
+                          border: "1px solid #eee",
+                          borderRadius: 1,
+                          "&:hover": { backgroundColor: "#f9f9f9" },
+                        }}
+                      >
+                        <ListItemAvatar>
+                          <Avatar sx={{ bgcolor: 'primary.main' }}>
+                            <HotelIcon />
+                          </Avatar>
+                        </ListItemAvatar>
+                        <ListItemText
+                          primary={
+                            <Typography variant="subtitle1" fontWeight="medium">
+                              {lodging.name}
+                              <Chip
+                                label={lodging.type}
+                                size="small"
+                                sx={{ ml: 1 }}
+                                color="primary"
+                              />
+                            </Typography>
+                          }
+                          secondary={
+                            <React.Fragment>
+                              <Typography
+                                component="span"
+                                variant="body2"
+                                color="text.primary"
+                                sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}
+                              >
+                                <LocationIcon fontSize="small" />
+                                {lodging.location}
+                              </Typography>
+                              <Typography
+                                variant="body2"
+                                sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}
+                              >
+                                <CalendarIcon fontSize="small" />
+                                {formatDate(lodging.checkIn)} - {formatDate(lodging.checkOut)}
+                              </Typography>
+                            </React.Fragment>
+                          }
+                        />
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          onClick={() => navigate(`/trips/${tripId}/lodging`)}
+                        >
+                          Details
+                        </Button>
+                      </ListItem>
+                    ))}
+
+                    {trip.lodgings.length > 3 && (
+                      <Box sx={{ textAlign: "center", mt: 2 }}>
+                        <Button
+                          variant="text"
+                          onClick={() => navigate(`/trips/${tripId}/lodging`)}
+                        >
+                          View all {trip.lodgings.length} lodgings
+                        </Button>
+                      </Box>
+                    )}
+                  </List>
+                ) : (
+                  <Box
+                    sx={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      py: 4,
+                    }}
+                  >
+                    <Typography
+                      variant="body1"
+                      color="text.secondary"
+                      sx={{ mb: 2 }}
+                    >
+                      No lodging added yet
+                    </Typography>
+                    <Button
+                      variant="outlined"
+                      startIcon={<AddIcon />}
+                      onClick={() => navigate(`/trips/${tripId}/lodging`)}
+                    >
+                      Add your first lodging
+                    </Button>
+                  </Box>
+                )}
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Quick Access Links */}
+          <Grid item xs={12}
+          sx={{
+            display: 'flex',
+            flexDirection: 'row',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+          >
             <Typography variant="h6" gutterBottom>
               Quick Access
             </Typography>
             <Grid container spacing={2}>
               {[
-                {
-                  icon: <HotelIcon />,
-                  title: "Lodging",
-                  color: "#4caf50",
-                  path: `/trips/${tripId}/lodging`,
-                  count: trip.lodgings?.length || 0,
-                },
-                {
-                  icon: <ActivityIcon />,
-                  title: "Experiences",
-                  color: "#ff9800",
-                  path: `/trips/${tripId}/experiences`,
-                  count: experiences.length,
-                },
                 {
                   icon: <ChecklistIcon />,
                   title: "Packing List",
@@ -1282,7 +1405,7 @@ const TripDashboard = () => {
                   count: 0,
                 },
               ].map((item, index) => (
-                <Grid item xs={6} md={2.4} key={index}>
+                <Grid item xs={6} md={3} key={index}>
                   <Card
                     elevation={2}
                     sx={{
@@ -1452,115 +1575,6 @@ const TripDashboard = () => {
             </>
           )}
         </Dialog>
-
-        {/* Collaborators Section */}
-        {(userRole === 'owner' || userRole === 'admin') && (
-          <Grid item xs={12}>
-            <Card elevation={2} sx={{ borderRadius: 2, mb: 3 }}>
-              <CardContent>
-                <Typography variant="h6" gutterBottom sx={{ display: "flex", alignItems: "center" }}>
-                  <GroupIcon sx={{ mr: 1 }} />
-                  Manage Collaborators
-                </Typography>
-                <Divider sx={{ my: 2 }} />
-
-                {error && (
-                  <Typography color="error" sx={{ mb: 2 }}>
-                    {error}
-                  </Typography>
-                )}
-
-                <Box component="form" onSubmit={handleAddCollaborator} sx={{ mb: 3 }}>
-                  <Grid container spacing={2} alignItems="center">
-                    <Grid item xs={12} sm={8}>
-                      <TextField
-                        fullWidth
-                        type="email"
-                        value={newCollaboratorEmail}
-                        onChange={(e) => setNewCollaboratorEmail(e.target.value)}
-                        placeholder="Enter email to invite"
-                        required
-                        size="small"
-                      />
-                    </Grid>
-                    <Grid item xs={12} sm={4}>
-                      <Button
-                        type="submit"
-                        variant="contained"
-                        fullWidth
-                        startIcon={<AddIcon />}
-                      >
-                        Add Collaborator
-                      </Button>
-                    </Grid>
-                  </Grid>
-                </Box>
-
-                <Button
-                  onClick={generateInviteCode}
-                  variant="outlined"
-                  startIcon={<ShareIcon />}
-                  sx={{ mb: 3 }}
-                >
-                  Generate Invite Code
-                </Button>
-
-                {inviteCode && (
-                  <Paper sx={{ p: 2, mb: 3, bgcolor: 'background.default' }}>
-                    <Typography variant="body2">Share this code:</Typography>
-                    <Typography variant="h6" sx={{ mt: 1 }}>
-                      {inviteCode}
-                    </Typography>
-                  </Paper>
-                )}
-
-                <List>
-                  {collaborators.map((collaborator) => (
-                    <ListItem
-                      key={collaborator.user._id}
-                      secondaryAction={
-                        userRole === 'owner' && (
-                          <Box sx={{ display: 'flex', gap: 1 }}>
-                            <TextField
-                              select
-                              size="small"
-                              value={collaborator.role}
-                              onChange={(e) =>
-                                handleUpdateRole(collaborator.user._id, e.target.value)
-                              }
-                              sx={{ minWidth: 120 }}
-                            >
-                              <MenuItem value="viewer">Viewer</MenuItem>
-                              <MenuItem value="editor">Editor</MenuItem>
-                              <MenuItem value="admin">Admin</MenuItem>
-                            </TextField>
-                            <IconButton
-                              edge="end"
-                              color="error"
-                              onClick={() => handleRemoveCollaborator(collaborator.user._id)}
-                            >
-                              <DeleteIcon />
-                            </IconButton>
-                          </Box>
-                        )
-                      }
-                    >
-                      <ListItemAvatar>
-                        <Avatar sx={{ bgcolor: stringToColor(collaborator.user.email) }}>
-                          {collaborator.user.email.charAt(0).toUpperCase()}
-                        </Avatar>
-                      </ListItemAvatar>
-                      <ListItemText
-                        primary={collaborator.user.email}
-                        secondary={`Role: ${collaborator.role}`}
-                      />
-                    </ListItem>
-                  ))}
-                </List>
-              </CardContent>
-            </Card>
-          </Grid>
-        )}
 
         {/* Edit Trip Dialog */}
         <Dialog

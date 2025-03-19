@@ -178,7 +178,7 @@ const Dashboard = () => {
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
             <LocationIcon sx={{ mr: 1, fontSize: 20, color: 'text.secondary' }} />
             <Typography variant="body2" color="text.secondary">
-              {trip.location || 'Location not set'}
+              {trip.destination || 'Location not set'}
             </Typography>
           </Box>
 

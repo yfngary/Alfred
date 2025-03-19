@@ -120,7 +120,7 @@ export default function NavBar({ isOpen, setIsOpen }) {
     };
 
     fetchTrips();
-  }, [refreshTrigger]);
+  }, [refreshTrigger, location.pathname]);
 
   const handleTripChange = (tripId) => {
     setSelectedTrip(tripId);
@@ -151,7 +151,9 @@ export default function NavBar({ isOpen, setIsOpen }) {
 
       {isOpen && (
         <>
-          <h1 style={headerStyle}>Trip Planner</h1>
+          <Link to="/" style={{ ...headerStyle, textDecoration: 'none', color: 'white', display: 'block' }}>
+            Trip Planner
+          </Link>
 
           {/* Navigation Links */}
           <Link to="/createTrip" style={{ color: 'white', textDecoration: 'none', marginBottom: '8px' }}>

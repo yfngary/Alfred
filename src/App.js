@@ -23,6 +23,8 @@ import TripCalendarView from "./components/TripCalendarView";
 import { Box } from "@mui/material";
 import JoinTrip from './components/JoinTrip';
 import { TripProvider } from './context/TripContext';
+import GuestManagement from './components/GuestManagement';
+import LodgingManagement from './components/LodgingManagement';
 
 const isAuthenticated = () => {
   const token = localStorage.getItem("token");
@@ -202,6 +204,22 @@ function Layout() {
             element={
               <ProtectedRoute>
                 <JoinTrip />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/trips/:tripId/guests"
+            element={
+              <ProtectedRoute>
+                <GuestManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/trips/:tripId/lodging"
+            element={
+              <ProtectedRoute>
+                <LodgingManagement />
               </ProtectedRoute>
             }
           />
