@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import axios from "../utils/axiosConfig";
 import {
   Container,
   Box,
@@ -25,6 +26,11 @@ import {
 } from "@mui/icons-material";
 
 export default function RegistrationForm() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const inviteCode = searchParams.get('invite');
+
   const [formData, setFormData] = useState({
     username: "",
     name: "",
@@ -39,7 +45,6 @@ export default function RegistrationForm() {
   const [message, setMessage] = useState("");
   const [isRegistered, setIsRegistered] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const navigate = useNavigate();
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -114,30 +119,87 @@ export default function RegistrationForm() {
       });
 
       try {
-        const response = await fetch("http://localhost:5001/api/register", {
-          method: "POST",
-          body: formDataToSend,
+        console.log('Sending registration request...');
+        const response = await axios.post("/api/auth/register", formDataToSend, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
         });
-
-        const result = await response.json();
-        if (response.ok) {
-          localStorage.setItem('token', result.token);
-          localStorage.setItem('user', JSON.stringify(result.user));
+        
+        console.log('Registration response:', response.data);
+        
+        // Registration successful, now log in automatically
+        try {
+          console.log('Automatically logging in with:', formData.email);
+          const loginResponse = await axios.post('/api/auth/login', {
+            email: formData.email,
+            password: formData.password
+          });
+          
+          console.log('Login response:', loginResponse.data);
+          const { token, user } = loginResponse.data;
+          
+          if (!token) {
+            throw new Error('No token received from login');
+          }
+          
+          // Store token and user data
+          localStorage.setItem('token', token);
+          localStorage.setItem('user', JSON.stringify(user));
+          
+          // Update axios default headers with the new token
+          axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+          console.log('Token set in localStorage and axios headers');
+          
           setIsRegistered(true);
+          
+          // If there's an invite code, join the trip
+          if (inviteCode) {
+            try {
+              console.log('Attempting to join trip with code:', inviteCode);
+              const joinResponse = await axios.post(`/api/trips/join/${inviteCode}`);
+              console.log('Join trip response:', joinResponse.data);
+              
+              // Redirect to the trip page after joining
+              setTimeout(() => {
+                // Check if the response has tripId in the expected location
+                const tripId = joinResponse.data.trip?._id || joinResponse.data.tripId;
+                
+                if (tripId) {
+                  console.log('Navigating to trip with ID:', tripId);
+                  navigate(`/trips/${tripId}`);
+                } else {
+                  console.error('No tripId found in join response:', joinResponse.data);
+                  navigate('/');
+                }
+              }, 2000);
+              return;
+            } catch (joinError) {
+              console.error('Error joining trip:', joinError.response || joinError);
+              setMessage("Successfully registered but couldn't join the trip. You can try joining again later.");
+            }
+          }
+          
+          // If no invite code or joining failed, redirect to home
           setTimeout(() => {
             navigate('/');
           }, 2000);
-        } else {
-          setMessage(result.error?.toString() || "Registration failed.");
-          if (result.error === "Email already in use") {
-            setErrors((prev) => ({
-              ...prev,
-              email: "This email is already registered.",
-            }));
-          }
+        } catch (loginError) {
+          console.error('Auto-login error:', loginError.response || loginError);
+          setMessage("Registration successful, but couldn't log in automatically. Please log in manually.");
+          setTimeout(() => {
+            navigate('/login');
+          }, 2000);
         }
       } catch (error) {
-        setMessage("Error connecting to the server.");
+        console.error('Registration error:', error.response || error);
+        setMessage(error.response?.data?.error || "Registration failed.");
+        if (error.response?.data?.error === "Email already in use") {
+          setErrors((prev) => ({
+            ...prev,
+            email: "This email is already registered.",
+          }));
+        }
       }
 
       setLoading(false);
@@ -149,7 +211,9 @@ export default function RegistrationForm() {
       <Container maxWidth="sm">
         <Box sx={{ mt: 8, textAlign: 'center' }}>
           <Alert severity="success" sx={{ mb: 2 }}>
-            Registration successful! Redirecting to home page...
+            {inviteCode 
+              ? "Registration successful! Joining trip..."
+              : "Registration successful! Redirecting to home page..."}
           </Alert>
           <CircularProgress />
         </Box>

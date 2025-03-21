@@ -5,7 +5,9 @@ import {
   ExpandMore,
   ExpandLess,
   Add as AddIcon,
-  Tag as TagIcon
+  Tag as TagIcon,
+  ChevronLeft,
+  Menu as MenuIcon
 } from '@mui/icons-material';
 import { 
   IconButton, 
@@ -20,6 +22,7 @@ import {
   Divider
 } from '@mui/material';
 import { useTrips } from '../context/TripContext';
+import axios from "../utils/axiosConfig";
 
 // Define widths for collapsed and expanded states
 const collapsedWidth = "60px";
@@ -34,27 +37,27 @@ const navStyle = (isOpen) => ({
   width: isOpen ? expandedWidth : collapsedWidth,
   backgroundColor: "#3B82F6",
   color: "white",
-  padding: "1rem",
   display: "flex",
   flexDirection: "column",
   transition: "width 0.3s ease",
   overflow: "hidden",
+  boxShadow: "0 0 10px rgba(0, 0, 0, 0.1)",
+  zIndex: 1000,
 });
 
-// Styles for the toggle button
-const toggleButtonStyle = {
-  backgroundColor: "transparent",
-  border: "none",
-  color: "white",
-  cursor: "pointer",
-  fontSize: "1.2rem",
-  marginBottom: "1rem",
+// Styles for the toggle button container
+const toggleButtonContainerStyle = {
+  display: "flex",
+  justifyContent: "flex-end",
+  padding: "12px 12px 8px 12px",
+  position: "relative",
 };
 
 const headerStyle = {
   fontSize: "1.5rem",
   fontWeight: "bold",
   marginBottom: "1rem",
+  padding: "0 12px",
 };
 
 const channelStyle = {
@@ -92,35 +95,31 @@ export default function NavBar({ isOpen, setIsOpen }) {
 
     const fetchTrips = async () => {
       try {
-        const response = await fetch(`http://localhost:5001/api/userTrips`, {
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-          },
-        });
-
-        if (!response.ok) {
-          if (response.status === 401) {
-            console.log("Unauthorized access - token may be invalid");
-            localStorage.removeItem("token");
-            localStorage.removeItem("user");
-            window.location.href = "/login";
-            return;
-          }
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        if (data && data.trips) {
-          setTrips(data.trips);
+        console.log('Fetching trips with token:', token);
+        const response = await axios.get('/api/trips/userTrips');  // Changed from /api/trips to /api/trips/userTrips
+        console.log('Trips response:', response.data);
+        
+        if (response.data && Array.isArray(response.data)) {
+          setTrips(response.data);
+        } else if (response.data && Array.isArray(response.data.trips)) {
+          setTrips(response.data.trips);
+        } else {
+          console.warn('Unexpected trips response format:', response.data);
+          setTrips([]);
         }
       } catch (error) {
-        console.error("Error fetching trips:", error);
+        console.error("Error fetching trips:", error.response || error);
+        if (error.response?.status === 401) {
+          console.log("Unauthorized access - token may be invalid");
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+          window.location.href = "/login";
+        }
       }
     };
 
     fetchTrips();
-  }, [refreshTrigger, location.pathname]);
+  }, [refreshTrigger]);
 
   const handleTripChange = (tripId) => {
     setSelectedTrip(tripId);
@@ -142,12 +141,27 @@ export default function NavBar({ isOpen, setIsOpen }) {
 
   return (
     <nav style={navStyle(isOpen)}>
-      <button
-        style={toggleButtonStyle}
-        onClick={() => setIsOpen((prev) => !prev)}
-      >
-        {isOpen ? "<" : ">"}
-      </button>
+      <div style={toggleButtonContainerStyle}>
+        <IconButton
+          onClick={() => setIsOpen((prev) => !prev)}
+          sx={{
+            color: 'white',
+            backgroundColor: 'rgba(255, 255, 255, 0.1)',
+            borderRadius: '8px',
+            padding: '4px',
+            minWidth: '32px',
+            minHeight: '32px',
+            '&:hover': {
+              backgroundColor: 'rgba(255, 255, 255, 0.2)',
+            },
+            transition: 'background-color 0.2s ease',
+          }}
+          size="small"
+          aria-label={isOpen ? "Collapse sidebar" : "Expand sidebar"}
+        >
+          {isOpen ? <ChevronLeft /> : <MenuIcon />}
+        </IconButton>
+      </div>
 
       {isOpen && (
         <>
@@ -180,7 +194,7 @@ export default function NavBar({ isOpen, setIsOpen }) {
                 display: 'flex',
                 alignItems: 'center',
                 cursor: 'pointer',
-                padding: '8px 0',
+                padding: '8px 12px',
                 marginBottom: '8px',
                 '&:hover': {
                   color: 'rgba(255, 255, 255, 0.8)',
@@ -231,7 +245,7 @@ export default function NavBar({ isOpen, setIsOpen }) {
                 display: 'flex',
                 alignItems: 'center',
                 cursor: 'pointer',
-                padding: '8px 0',
+                padding: '8px 12px',
                 marginBottom: '8px',
                 '&:hover': {
                   color: 'rgba(255, 255, 255, 0.8)',
@@ -300,7 +314,7 @@ export default function NavBar({ isOpen, setIsOpen }) {
             </Collapse>
           </Box>
 
-          <Box sx={{ marginTop: 'auto' }}>
+          <Box sx={{ marginTop: 'auto', padding: '12px' }}>
             <Link to="/profilePage" style={{ color: 'white', textDecoration: 'none' }}>
               <Box sx={{
                 ...channelStyle,

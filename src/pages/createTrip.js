@@ -44,6 +44,10 @@ const CreateTrip = () => {
     relationships: [], // Ensure this is initialized as an empty array
     adults: 4, // Default to 4 adults
     kids: 4, // Default to 4 kids
+    selectedInvitees: [], // Add this to track selected guests for invitation
+    inviteMethod: "email", // Default invitation method
+    inviteMessage: "", // Custom invitation message
+    guestsToInvite: [], // Guests with contact info for invitations
   });
 
   const updateFormData = (newData) => {
@@ -60,6 +64,7 @@ const CreateTrip = () => {
       setIsSubmitting(true);
       try {
         const token = localStorage.getItem("token");
+        console.log("🔍 Final trip submission - Starting process");
         
         // Prepare the data to send to the server
         const tripData = {
@@ -88,6 +93,8 @@ const CreateTrip = () => {
             }))
           }))
         };
+        
+        console.log("📤 Sending trip data to backend:", JSON.stringify(tripData, null, 2));
 
         const response = await fetch("http://localhost:5001/api/trips", {
           method: "POST",
@@ -101,14 +108,88 @@ const CreateTrip = () => {
 
         if (response.ok) {
           const data = await response.json();
+          console.log("✅ Trip created successfully:", data);
           refreshTrips(); // Refresh trips in NavBar
+          
+          // Check if we have guests to invite
+          if (formData.selectedInvitees && formData.selectedInvitees.length > 0 && formData.guestsToInvite) {
+            console.log("📧 Preparing to send invitations to:", formData.selectedInvitees);
+            console.log("📧 Guest data for invitations:", formData.guestsToInvite);
+            
+            try {
+              // Get or generate an invite code for the trip
+              console.log("🔑 Requesting invite code for trip:", data.trip._id);
+              const inviteCodeResponse = await fetch(`http://localhost:5001/api/trips/${data.trip._id}/invite-code`, {
+                method: "POST",
+                headers: { 
+                  "Content-Type": "application/json", 
+                  Authorization: `Bearer ${token}`,
+                },
+                credentials: "include",
+              });
+              
+              if (!inviteCodeResponse.ok) {
+                console.error("❌ Failed to get invite code:", await inviteCodeResponse.text());
+                throw new Error("Failed to generate invite code");
+              }
+              
+              const inviteCodeData = await inviteCodeResponse.json();
+              const inviteCode = inviteCodeData.inviteCode;
+              console.log("🔑 Got invite code:", inviteCode);
+              
+              // Create the join link
+              const joinLink = `${window.location.origin}/join-trip/${inviteCode}`;
+              console.log("🔗 Created join link:", joinLink);
+              
+              // Update the invitation message to include the join link
+              let enhancedMessage = formData.inviteMessage;
+              if (!enhancedMessage.includes("Click here to join")) {
+                enhancedMessage += `\n\nClick here to join the trip: ${joinLink}`;
+              }
+              console.log("📝 Enhanced invitation message:", enhancedMessage);
+              
+              // Prepare invitation data
+              const invitationData = {
+                guests: formData.guestsToInvite,
+                inviteMethod: formData.inviteMethod,
+                customMessage: enhancedMessage,
+                inviteCode: inviteCode,
+                joinLink: joinLink
+              };
+              console.log("📤 Sending invitation data to backend:", JSON.stringify(invitationData, null, 2));
+              
+              // Send invitations for the newly created trip
+              const inviteResponse = await fetch(`http://localhost:5001/api/trips/${data.trip._id}/send-invitations`, {
+                method: "POST",
+                headers: { 
+                  "Content-Type": "application/json", 
+                  Authorization: `Bearer ${token}`,
+                },
+                credentials: "include",
+                body: JSON.stringify(invitationData),
+              });
+              
+              if (!inviteResponse.ok) {
+                console.error("❌ Error sending invitations:", await inviteResponse.text());
+              } else {
+                const inviteResult = await inviteResponse.json();
+                console.log("✅ Invitation response:", inviteResult);
+              }
+            } catch (inviteError) {
+              console.error("❌ Exception sending invitations:", inviteError);
+            }
+          } else {
+            console.log("ℹ️ No guests selected for invitation");
+          }
+          
           navigate(`/trips/${data.trip._id}`);
         } else {
           const errorData = await response.json();
+          console.error("❌ Error creating trip:", errorData);
           throw new Error(errorData.error || "Failed to create trip.");
         }
       } catch (error) {
-        console.error("Error submitting trip:", error);
+        console.error("❌ Error in submission process:", error);
       } finally {
         setIsSubmitting(false);
       }

@@ -23,6 +23,7 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Alert,
 } from "@mui/material";
 import {
   CalendarMonth as CalendarIcon,
@@ -165,6 +166,7 @@ const BasicDetailsForm = React.memo(({ formData, onChange }) => (
 const ReviewTripForm = ({ formData = {}, updateFormData }) => {
   const [expandGuests, setExpandGuests] = useState(false);
   const [expandGroups, setExpandGroups] = useState(false);
+  const [expandInvites, setExpandInvites] = useState(false);
 
   // Edit mode states
   const [editMode, setEditMode] = useState({
@@ -212,6 +214,8 @@ const ReviewTripForm = ({ formData = {}, updateFormData }) => {
   // Get invited guest count
   const invitedGuestCount =
     formData.guests?.filter((guest) => guest.invitationSent)?.length || 0;
+  // Get selected for invitation guests count
+  const selectedInviteesCount = formData.selectedInvitees?.length || 0;
   // Get relationships/groups
   const groups = formData.relationships || []; 
   console.log(formData)
@@ -833,6 +837,113 @@ const ReviewTripForm = ({ formData = {}, updateFormData }) => {
             </Box>
           }
         />
+
+        {/* Guest Invitations Section */}
+        {selectedInviteesCount > 0 && (
+          <Card variant="outlined" sx={{ mb: 3 }}>
+            <CardContent>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  mb: 2,
+                }}
+              >
+                <Box sx={{ display: "flex", alignItems: "center" }}>
+                  <InviteIcon color="primary" />
+                  <Typography variant="h6" component="h2" sx={{ ml: 1 }}>
+                    Guest Invitations
+                  </Typography>
+                </Box>
+                <Box>
+                  <Tooltip title={expandInvites ? "Hide Details" : "Show Details"}>
+                    <IconButton
+                      onClick={() => setExpandInvites(!expandInvites)}
+                      aria-expanded={expandInvites}
+                      aria-label="show more"
+                    >
+                      {expandInvites ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              </Box>
+              
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="body2" color="text.secondary">
+                  Invitation Method
+                </Typography>
+                <Typography variant="body1" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  {formData.inviteMethod === 'email' ? (
+                    <>
+                      <EmailIcon fontSize="small" color="primary" /> Email
+                    </>
+                  ) : formData.inviteMethod === 'sms' ? (
+                    <>
+                      <SmsIcon fontSize="small" color="primary" /> SMS
+                    </>
+                  ) : (
+                    <>
+                      <ShareIcon fontSize="small" color="primary" /> Shareable Link
+                    </>
+                  )}
+                </Typography>
+              </Box>
+              
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="body2" color="text.secondary">
+                  Number of Guests to Invite
+                </Typography>
+                <Typography variant="body1">
+                  {selectedInviteesCount} of {guestCount} guests selected
+                </Typography>
+              </Box>
+              
+              {formData.inviteMessage && (
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Invitation Message
+                  </Typography>
+                  <Paper variant="outlined" sx={{ p: 2, bgcolor: 'background.paper' }}>
+                    <Typography variant="body2">{formData.inviteMessage}</Typography>
+                    
+                    {/* Preview of join link that will be added */}
+                    <Typography variant="body2" sx={{ mt: 2, color: 'text.secondary', fontStyle: 'italic' }}>
+                      + A personalized join link will be added here when the trip is submitted
+                    </Typography>
+                  </Paper>
+                </Box>
+              )}
+              
+              <Collapse in={expandInvites} timeout="auto" unmountOnExit>
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Selected Guests for Invitation
+                  </Typography>
+                  <Grid container spacing={1}>
+                    {formData.guestsToInvite && formData.guestsToInvite.map((guest, index) => (
+                      <Grid item xs={12} sm={6} md={4} key={index}>
+                        <Chip
+                          avatar={<Avatar>{guest.name?.charAt(0) || '?'}</Avatar>}
+                          label={guest.name}
+                          variant="outlined"
+                          color="primary"
+                          sx={{ width: '100%', justifyContent: 'flex-start' }}
+                        />
+                      </Grid>
+                    ))}
+                  </Grid>
+                </Box>
+                
+                <Box sx={{ mt: 3 }}>
+                  <Alert severity="info" variant="outlined">
+                    These guests will receive invitations when you submit this trip.
+                  </Alert>
+                </Box>
+              </Collapse>
+            </CardContent>
+          </Card>
+        )}
       </Paper>
 
       {/* Lodging Edit Dialog */}

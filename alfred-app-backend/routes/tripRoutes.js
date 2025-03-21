@@ -5,6 +5,8 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const User = require("../models/User");
+const { sendTripInvitationEmail } = require('../utils/emailService');
+const { sendTripInvitationSMS } = require('../utils/smsService');
 
 const authMiddleware = require("../middleware/authMiddleware");
 const router = express.Router();
@@ -40,7 +42,7 @@ const upload = multer({
 });
 
 // POST: Create a new trip
-router.post("/trips", authMiddleware, async (req, res) => {
+router.post("/", authMiddleware, async (req, res) => {
   try {
     const { 
       tripName, 
@@ -253,7 +255,7 @@ router.get("/userTrips", authMiddleware, async (req, res) => {
 });
 
 // Update the delete trip route to clean up associated data
-router.delete("/trips/:tripId", authMiddleware, async (req, res) => {
+router.delete("/:tripId", authMiddleware, async (req, res) => {
   try {
     const { tripId } = req.params;
 
@@ -648,7 +650,7 @@ router.delete(
 );
 
 // Get trip by chat ID
-router.get("/trips/chat/:chatId", authMiddleware, async (req, res) => {
+router.get("/chat/:chatId", authMiddleware, async (req, res) => {
   try {
     const { chatId } = req.params;
     
@@ -828,6 +830,148 @@ router.post("/join/:inviteCode", authMiddleware, async (req, res) => {
     res.json({ message: "Successfully joined trip", trip });
   } catch (error) {
     res.status(500).json({ error: "Server error" });
+  }
+});
+
+// Send invitations to selected guests
+router.post("/:tripId/send-invitations", authMiddleware, tripAccessMiddleware("admin"), async (req, res) => {
+  try {
+    const { tripId } = req.params;
+    const { guests, inviteMethod, customMessage, inviteCode, joinLink } = req.body;
+    
+    console.log("📧 Send invitations endpoint hit:", { 
+      tripId, 
+      guestsCount: guests?.length, 
+      inviteMethod, 
+      messageLength: customMessage?.length,
+      providedInviteCode: inviteCode,
+      providedJoinLink: joinLink
+    });
+    console.log("📧 Guest data received:", JSON.stringify(guests, null, 2));
+    
+    // Get trip details
+    const trip = await Trip.findById(tripId);
+    if (!trip) {
+      console.error("Trip not found:", tripId);
+      return res.status(404).json({ error: "Trip not found" });
+    }
+    
+    // Generate invite code if not already present
+    if (!trip.inviteCode && !inviteCode) {
+      trip.inviteCode = Math.random().toString(36).substring(2, 15);
+      await trip.save();
+      console.log("Generated new invite code:", trip.inviteCode);
+    } else if (inviteCode) {
+      trip.inviteCode = inviteCode;
+      await trip.save();
+      console.log("Using provided invite code:", inviteCode);
+    }
+    
+    // Get sender details
+    const sender = await User.findById(req.user.id);
+    console.log("Sender details:", { name: sender.name, email: sender.email });
+    
+    // Process each guest
+    const results = [];
+    for (const guest of guests) {
+      try {
+        console.log("Processing guest invitation:", { name: guest.name, email: guest.email, phone: guest.phone });
+        
+        // Skip if no contact information for the selected method
+        if (inviteMethod === "email" && !guest.email) {
+          console.log(`Skipping ${guest.name}: No email address`);
+          results.push({ name: guest.name, status: "skipped", error: "No email address" });
+          continue;
+        } else if (inviteMethod === "sms" && !guest.phone) {
+          console.log(`Skipping ${guest.name}: No phone number`);
+          results.push({ name: guest.name, status: "skipped", error: "No phone number" });
+          continue;
+        }
+        
+        if (inviteMethod === "email") {
+          // Send email invitation
+          console.log(`Sending email to ${guest.email} for ${guest.name}`);
+          await sendTripInvitationEmail({
+            to: guest.email,
+            tripName: trip.tripName || trip.name, // Handle both field names
+            inviteCode: trip.inviteCode,
+            customMessage,
+            senderName: sender.name,
+          });
+          console.log(`Email sent successfully to ${guest.email}`);
+        } else if (inviteMethod === "sms") {
+          // Send SMS invitation
+          console.log(`Sending SMS to ${guest.phone} for ${guest.name}`);
+          await sendTripInvitationSMS({
+            to: guest.phone,
+            tripName: trip.tripName || trip.name, // Handle both field names
+            inviteCode: trip.inviteCode,
+            customMessage,
+            senderName: sender.name,
+          });
+          console.log(`SMS sent successfully to ${guest.phone}`);
+        }
+        
+        // Update guest invitation status in the trip
+        const guestIndex = trip.guests.findIndex(g => g.name === guest.name);
+        if (guestIndex !== -1) {
+          trip.guests[guestIndex].invitationSent = true;
+          trip.guests[guestIndex].invitationDate = new Date();
+          trip.guests[guestIndex].invitationMethod = inviteMethod;
+        }
+        
+        results.push({ name: guest.name, status: "sent" });
+      } catch (error) {
+        console.error(`Error inviting ${guest.name}:`, error);
+        results.push({ name: guest.name, status: "failed", error: error.message });
+      }
+    }
+    
+    // Save updated trip
+    await trip.save();
+    
+    res.status(200).json({ 
+      message: "Invitations processed",
+      inviteCode: trip.inviteCode, 
+      results 
+    });
+  } catch (error) {
+    console.error("Error sending invitations:", error);
+    res.status(500).json({ error: "Failed to send invitations" });
+  }
+});
+
+// Get public trip details by invite code (no auth required)
+router.get("/details/:inviteCode", async (req, res) => {
+  try {
+    const { inviteCode } = req.params;
+    
+    // Find trip by invite code
+    const trip = await Trip.findOne({ inviteCode })
+      .populate('userId', 'name email')
+      .select('tripName destination startDate endDate inviteCode userId');
+    
+    if (!trip) {
+      return res.status(404).json({ error: "Trip not found or invitation has expired" });
+    }
+    
+    // Return limited details for public viewing
+    res.json({
+      id: trip._id,
+      name: trip.tripName,
+      destination: trip.destination,
+      dates: {
+        start: trip.startDate,
+        end: trip.endDate
+      },
+      organizer: trip.userId ? {
+        name: trip.userId.name,
+        id: trip.userId._id
+      } : undefined
+    });
+  } catch (error) {
+    console.error("Error getting trip details by invite code:", error);
+    res.status(500).json({ error: "Failed to get trip details" });
   }
 });
 

@@ -39,9 +39,11 @@ mongoose
   .catch((err) => console.error("MongoDB Connection Error:", err));
 
 // Routes
-app.use("/api", authRoutes, tripRoutes, chatRoutes);
-app.use("/userApi", userRoutes);
-app.use("/requestsApi", requestRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/trips", tripRoutes);
+app.use("/api/chat", chatRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/requests", requestRoutes);
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 const PORT = process.env.PORT || 5001;

@@ -29,6 +29,13 @@ export default function ChatPage() {
       const response = await fetch(`http://localhost:5001/api/trips/chat/${chatId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      
+      if (!response.ok) {
+        const text = await response.text();
+        console.error("Error response from server:", text);
+        throw new Error(`Failed to load trip information: ${response.status}`);
+      }
+      
       const data = await response.json();
       if (response.ok) {
         setTripInfo(data.trip);
@@ -62,11 +69,17 @@ export default function ChatPage() {
     try {
       const token = localStorage.getItem("token");
       const response = await fetch(
-        `http://localhost:5001/api/${chatId}/messages`,
+        `http://localhost:5001/api/chat/${chatId}/messages`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
+
+      if (!response.ok) {
+        const text = await response.text();
+        console.error("Error response from server:", text);
+        throw new Error(`Failed to load messages: ${response.status}`);
+      }
 
       const result = await response.json();
       if (response.ok) {
@@ -78,6 +91,7 @@ export default function ChatPage() {
         setLoading(false);
       }
     } catch (error) {
+      console.error("Error fetching messages:", error);
       setError("Failed to load messages");
       setLoading(false);
     }

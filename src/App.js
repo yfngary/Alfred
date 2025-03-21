@@ -1,5 +1,6 @@
 // src/App.js
 import React from "react";
+import "./utils/axiosConfig";
 import {
   BrowserRouter as Router,
   Route,
@@ -22,6 +23,7 @@ import { useEffect } from "react";
 import TripCalendarView from "./components/TripCalendarView";
 import { Box } from "@mui/material";
 import JoinTrip from './components/JoinTrip';
+import JoinTripPage from './pages/JoinTripPage';
 import { TripProvider } from './context/TripContext';
 import GuestManagement from './components/GuestManagement';
 import LodgingManagement from './components/LodgingManagement';
@@ -226,6 +228,7 @@ function Layout() {
           {/* Public routes */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegistrationForm />} />
+          <Route path="/join-trip/:inviteCode" element={<JoinTripPage />} />
           
           {/* Make Dashboard the default route */}
           <Route

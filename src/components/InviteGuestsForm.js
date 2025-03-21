@@ -32,6 +32,7 @@ import {
   Send as SendIcon,
   Group as GroupIcon,
 } from "@mui/icons-material";
+import axios from "axios";
 
 const InviteGuestsPage = ({ formData, updateFormData }) => {
   // States for guest selection and invitation options
@@ -50,6 +51,27 @@ const InviteGuestsPage = ({ formData, updateFormData }) => {
 
   // Get all relationships/groups
   const groups = formData.relationships || [];
+  
+  // Log for debugging
+  useEffect(() => {
+    console.log("InviteGuestsForm - formData:", formData);
+    console.log("InviteGuestsForm - all guests:", allGuests);
+  }, [formData, allGuests]);
+
+  // Use effect to initialize selected guests from formData if available
+  useEffect(() => {
+    if (formData.selectedInvitees && formData.selectedInvitees.length > 0) {
+      setSelectedGuests(formData.selectedInvitees);
+    }
+    
+    if (formData.inviteMethod) {
+      setInviteMethod(formData.inviteMethod);
+    }
+    
+    if (formData.inviteMessage) {
+      setCustomMessage(formData.inviteMessage);
+    }
+  }, [formData.selectedInvitees, formData.inviteMethod, formData.inviteMessage]);
 
   // Set a default custom message based on the trip details
   useEffect(() => {
@@ -80,25 +102,55 @@ const InviteGuestsPage = ({ formData, updateFormData }) => {
 
   // Check if a guest has the required contact info for the selected invitation method
   const hasRequiredContactInfo = (guest) => {
+    // Log each guest's contact info for debugging
+    console.log(`Guest ${guest.name} email:`, guest.email, "phone:", guest.phone, "contactType:", guest.contactType);
     
     if (inviteMethod === "email") {
-      // Try different possible locations where email might be stored
-      return !!(
-        guest.contactType === "Email"
+      // Check for email in various possible locations
+      const hasEmail = !!(
+        guest.email || 
+        guest.contact || 
+        (guest.contactInfo && guest.contactInfo.email) ||
+        (typeof guest.contact === "string" && guest.contact.includes("@"))
       );
+      console.log(`Guest ${guest.name} has email:`, hasEmail);
+      return hasEmail;
     } else if (inviteMethod === "sms") {
-      // Try different possible locations where phone might be stored
-      return !!(
-        guest.contactType === "Phone"
+      // Check for phone in various possible locations
+      const hasPhone = !!(
+        guest.phone ||
+        guest.phoneNumber ||
+        guest.mobile ||
+        (guest.contactInfo && guest.contactInfo.phone)
       );
+      console.log(`Guest ${guest.name} has phone:`, hasPhone);
+      return hasPhone;
     }
     return true; // For link method, no specific contact info needed
   };
 
   const getEligibleGuests = () => {
-    return allGuests.filter((guest) => hasRequiredContactInfo(guest));
+    const filtered = allGuests.filter((guest) => hasRequiredContactInfo(guest));
+    
+    // If no eligible guests are found, but we have guests, show a warning and return all guests
+    if (filtered.length === 0 && allGuests.length > 0) {
+      console.warn("No eligible guests found with required contact info. Consider reviewing your guest data or using the link method instead.");
+      
+      // For debugging, let's still return all guests so we can see what we're working with
+      if (inviteMethod === "link") {
+        return allGuests;
+      }
+    }
+    
+    return filtered;
   };
   const eligibleGuests = getEligibleGuests();
+  
+  // Log eligible guests for debugging
+  useEffect(() => {
+    console.log("InviteGuestsForm - eligible guests:", eligibleGuests);
+    console.log("InviteGuestsForm - invite method:", inviteMethod);
+  }, [eligibleGuests, inviteMethod]);
 
   // Update selectAll checkbox state when selectedGuests changes
   useEffect(() => {
@@ -157,24 +209,34 @@ const InviteGuestsPage = ({ formData, updateFormData }) => {
     });
   };
 
-  // Create a shareable link (simulated)
-  const generateShareableLink = () => {
+  // Create a shareable link
+  const generateShareableLink = async () => {
     setIsCreatingLink(true);
-    // Simulate API call to create a shareable link
-    setTimeout(() => {
-      const uniqueCode = Math.random().toString(36).substring(2, 8);
-      const link = `https://yourapp.com/invite/${uniqueCode}`;
+    
+    try {
+      // Call backend API to generate or retrieve invite code
+      const response = await axios.post(`/api/trips/${formData.tripId}/invite-code`);
+      const { inviteCode } = response.data;
+      
+      // Create the shareable link
+      const link = `${window.location.origin}/join-trip/${inviteCode}`;
       setShareableLink(link);
-      setIsCreatingLink(false);
-
-      // In a real app, you would store this link in your database
+      
+      // Update formData if needed
       if (updateFormData) {
         updateFormData({
           ...formData,
+          inviteCode,
           shareableLink: link,
         });
       }
-    }, 1000);
+    } catch (error) {
+      console.error("Error generating invite link:", error);
+      setSnackbarMessage(`Failed to generate link: ${error.response?.data?.error || error.message}`);
+      setSnackbarOpen(true);
+    } finally {
+      setIsCreatingLink(false);
+    }
   };
 
   // Copy link to clipboard
@@ -194,8 +256,8 @@ const InviteGuestsPage = ({ formData, updateFormData }) => {
     }
   };
 
-  // Send invitations
-  const sendInvitations = () => {
+  // Save invitation preferences (replacing the sendInvitations function)
+  const saveInvitationPreferences = () => {
     if (selectedGuests.length === 0) {
       setSnackbarMessage("Please select at least one guest to invite");
       setSnackbarOpen(true);
@@ -216,38 +278,20 @@ const InviteGuestsPage = ({ formData, updateFormData }) => {
       return;
     }
 
-    // In a real app, we would send invitations here
-    // For now, just show a success message
+    // Update formData with invitation preferences
+    updateFormData({
+      ...formData,
+      selectedInvitees: selectedGuests,
+      inviteMethod: inviteMethod,
+      inviteMessage: customMessage,
+      guestsToInvite: guestsToInvite,
+    });
+
+    // Show confirmation message
     setSnackbarMessage(
-      `${inviteMethod.toUpperCase()} invitations sent to ${
-        guestsToInvite.length
-      } guest(s)!`
+      `${selectedGuests.length} guest(s) selected for invitation upon trip submission`
     );
     setSnackbarOpen(true);
-
-    // In a real app, you would store invitation status in your database
-    if (updateFormData) {
-      const now = new Date().toISOString();
-      const updatedGuests = allGuests.map((guest) => {
-        if (
-          selectedGuests.includes(guest.name) &&
-          hasRequiredContactInfo(guest)
-        ) {
-          return {
-            ...guest,
-            invitationSent: true,
-            invitationDate: now,
-            invitationMethod: inviteMethod,
-          };
-        }
-        return guest;
-      });
-
-      updateFormData({
-        ...formData,
-        guests: updatedGuests,
-      });
-    }
   };
 
   // Get guest contact info and display appropriate icons
@@ -407,6 +451,9 @@ const InviteGuestsPage = ({ formData, updateFormData }) => {
                 onChange={(e) => setCustomMessage(e.target.value)}
                 variant="outlined"
               />
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: "block" }}>
+                A join link will be automatically added to this message when the trip is submitted.
+              </Typography>
             </Grid>
           )}
 
@@ -593,6 +640,12 @@ const InviteGuestsPage = ({ formData, updateFormData }) => {
                         />
                         {getGuestContactInfo(guest)}
                       </Box>
+                      
+                      {/* Debug info - will be removed in production */}
+                      <Box sx={{ mt: 1, fontSize: '0.75rem', color: 'text.secondary' }}>
+                        <div>Email: {guest.email || "none"}</div>
+                        <div>Phone: {guest.phone || "none"}</div>
+                      </Box>
                     </CardContent>
                     <CardActions>
                       <FormControlLabel
@@ -636,7 +689,7 @@ const InviteGuestsPage = ({ formData, updateFormData }) => {
             color="primary"
             size="large"
             startIcon={<SendIcon />}
-            onClick={sendInvitations}
+            onClick={saveInvitationPreferences}
             disabled={selectedGuests.length === 0 || !hasEligibleGuests}
             sx={{
               px: 4,
@@ -645,8 +698,8 @@ const InviteGuestsPage = ({ formData, updateFormData }) => {
               boxShadow: 3,
             }}
           >
-            Send Invitations to {selectedGuests.length} Guest
-            {selectedGuests.length !== 1 ? "s" : ""}
+            Select {selectedGuests.length} Guest
+            {selectedGuests.length !== 1 ? "s" : ""} for Invitation
           </Button>
         )}
       </Box>
@@ -660,15 +713,15 @@ const InviteGuestsPage = ({ formData, updateFormData }) => {
           <ul style={{ margin: 0, paddingLeft: "1.5rem" }}>
             <li>
               <strong>Email:</strong> Invitations will be sent to guest email
-              addresses
+              addresses when you submit the trip. Each invitation will include a personal join link.
             </li>
             <li>
               <strong>SMS:</strong> Text messages will be sent to guest phone
-              numbers
+              numbers when you submit the trip. Each message will include a personal join link.
             </li>
             <li>
               <strong>Shareable Link:</strong> Generate a link that can be
-              shared with guests manually
+              shared with guests manually. This single link can be used by multiple guests.
             </li>
           </ul>
         </Typography>

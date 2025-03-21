@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   Box,
@@ -34,6 +34,7 @@ import {
   FormControl,
   InputLabel,
   Select,
+  Alert,
 } from "@mui/material";
 import {
   CalendarMonth as CalendarIcon,
@@ -60,6 +61,8 @@ import {
 } from "@mui/icons-material";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import { useTrips } from '../context/TripContext';
+import { debounce } from 'lodash';
+import axios from "../utils/axiosConfig";
 
 const TripDashboard = () => {
   const { tripId } = useParams();
@@ -88,12 +91,14 @@ const TripDashboard = () => {
   const [selectedGroup, setSelectedGroup] = useState('');
   const [newGroupName, setNewGroupName] = useState('');
   const [openRelationshipsDialog, setOpenRelationshipsDialog] = useState(false);
+  const [guests, setGuests] = useState([{ email: '', phone: '', name: '' }]);
+  const [sending, setSending] = useState(false);
+  const [searchResults, setSearchResults] = useState({});
 
   useEffect(() => {
     const fetchTripDetails = async (tripId) => {
       try {
         setLoading(true);
-        const token = localStorage.getItem("token");
         const userStr = localStorage.getItem("user");
         let userId = null;
         
@@ -112,53 +117,53 @@ const TripDashboard = () => {
           }
         }
 
-        const response = await fetch(
-          `http://localhost:5001/api/trips/${tripId}`,
-          {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`Failed to fetch trip details: ${response.status}`);
-        }
-
-        const data = await response.json();
+        console.log("Fetching trip details for ID:", tripId);
+        
+        // Skip the failing endpoint and directly use the working one
+        const response = await axios.get('/api/trips/userTrips');
+        console.log("UserTrips response:", response.data);
+        
         let tripData;
-
-        // Determine where the trip data is located in the response
-        if (data && data.trip) {
-          tripData = data.trip;
-        } else if (data && typeof data === "object") {
-          if ("tripName" in data || "_id" in data || "startDate" in data) {
-            tripData = data;
-          } else if (data.trips && data.trips.length > 0) {
-            tripData = data.trips[0];
+        
+        // Find the matching trip in the list
+        if (response.data.trips && Array.isArray(response.data.trips)) {
+          const matchingTrip = response.data.trips.find(trip => trip._id === tripId);
+          if (matchingTrip) {
+            tripData = matchingTrip;
           } else {
-            throw new Error("Trip data not found in API response");
+            throw new Error("Trip not found in user trips");
           }
+        } else {
+          throw new Error("Invalid response format from userTrips endpoint");
         }
 
-        console.log("Trip data:", tripData);
+        console.log("Trip data for display:", tripData);
+
+        if (!tripData) {
+          throw new Error("Could not extract trip data from response");
+        }
 
         setTrip(tripData);
 
         // Set user role - compare both as strings to ensure proper matching
+        // Add defensive checks to avoid errors with null values
         if (userId && tripData.userId && (userId === tripData.userId || userId === tripData.userId.toString())) {
           setUserRole('owner');
         } else {
-          const collaborator = tripData.collaborators?.find(c => 
-            c.user._id === userId || c.user._id === userId?.toString()
+          // Add defensive checks for collaborators
+          const collaborators = tripData.collaborators || [];
+          const collaborator = collaborators.find(c => 
+            c && c.user && 
+            (c.user._id === userId || 
+             c.user._id === userId?.toString() || 
+             c.user === userId || 
+             c.user === userId?.toString())
           );
           const role = collaborator?.role || 'viewer';
           setUserRole(role);
         }
 
+        // Also add a defensive check here
         setCollaborators(tripData.collaborators || []);
       } catch (err) {
         console.error("Error fetching trip details:", err);
@@ -356,6 +361,7 @@ const TripDashboard = () => {
 
   const handleDeleteTrip = async () => {
     setDeleteLoading(true);
+    console.log("Deleting trip with ID:", tripId);
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`http://localhost:5001/api/trips/${tripId}`, {
@@ -656,6 +662,76 @@ const TripDashboard = () => {
       setError(error.message);
     } finally {
       setGuestEditLoading(false);
+    }
+  };
+
+  // Debounced search for existing users
+  const searchExistingUser = useCallback(
+    debounce(async (email, index) => {
+      if (!email) return;
+      try {
+        const response = await fetch(`/api/users/search?email=${email}`);
+        const data = await response.json();
+        setSearchResults(prev => ({
+          ...prev,
+          [index]: data.user
+        }));
+      } catch (error) {
+        console.error('Error searching user:', error);
+      }
+    }, []),
+    []
+  );
+
+  // Handle email input change with existing user search
+  const handleEmailChange = (index, value) => {
+    const newGuests = [...guests];
+    newGuests[index].email = value;
+    setGuests(newGuests);
+    searchExistingUser(value, index);
+  };
+
+  const handleCreateTripWithInvitations = async () => {
+    try {
+      setSending(true);
+      
+      // First create the trip
+      const tripResponse = await fetch('/api/trips', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(trip)
+      });
+
+      if (!tripResponse.ok) throw new Error('Failed to create trip');
+      const { trip } = await tripResponse.json();
+
+      // Then send invitations
+      const validGuests = guests.filter(g => g.email || g.phone);
+      
+      const inviteResponse = await fetch(`/api/trips/${trip._id}/invitations`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          guests: validGuests.map(guest => ({
+            ...guest,
+            isExistingUser: !!searchResults[guests.indexOf(guest)]
+          }))
+        })
+      });
+
+      if (!inviteResponse.ok) throw new Error('Failed to send invitations');
+
+      onTripUpdate(trip);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSending(false);
     }
   };
 
@@ -1727,7 +1803,7 @@ const TripDashboard = () => {
                 All Guests
               </Typography>
               <List>
-                {editedGuests.map((guest, index) => {
+                {guests.map((guest, index) => {
                   // Find which group this guest belongs to by checking both level1 and level2 arrays
                   const guestGroup = groups.find(g => 
                     g.level1.includes(guest._id) || g.level2.includes(guest._id)
@@ -1735,7 +1811,7 @@ const TripDashboard = () => {
                   
                   return (
                     <ListItem
-                      key={guest.id}
+                      key={guest.email}
                       sx={{
                         flexDirection: 'column',
                         alignItems: 'stretch',
@@ -1765,7 +1841,7 @@ const TripDashboard = () => {
                           <InputLabel>Type</InputLabel>
                           <Select
                             value={guest.type}
-                            onChange={(e) => handleUpdateGuestType(index, e.target.value)}
+                            onChange={(e) => handleUpdateGuestInfo(index, 'type', e.target.value)}
                             size="small"
                             label="Type"
                           >
@@ -1812,8 +1888,8 @@ const TripDashboard = () => {
                           <TextField
                             fullWidth
                             label="Email"
-                            value={guest.email || ''}
-                            onChange={(e) => handleUpdateGuestInfo(index, 'email', e.target.value)}
+                            value={guest.email}
+                            onChange={(e) => handleEmailChange(index, e.target.value)}
                             type="email"
                             size="small"
                           />
@@ -1822,7 +1898,7 @@ const TripDashboard = () => {
                           <TextField
                             fullWidth
                             label="Phone"
-                            value={guest.phone || ''}
+                            value={guest.phone}
                             onChange={(e) => handleUpdateGuestInfo(index, 'phone', e.target.value)}
                             type="tel"
                             size="small"
@@ -1836,16 +1912,15 @@ const TripDashboard = () => {
             </Box>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setOpenGuestsDialog(false)} disabled={guestEditLoading}>
+            <Button onClick={() => setOpenGuestsDialog(false)} disabled={sending}>
               Cancel
             </Button>
             <Button
-              onClick={handleUpdateGuests}
               variant="contained"
-              disabled={guestEditLoading}
-              startIcon={guestEditLoading ? <CircularProgress size={20} /> : <EditIcon />}
+              onClick={handleCreateTripWithInvitations}
+              disabled={sending}
             >
-              {guestEditLoading ? 'Saving...' : 'Save Changes'}
+              {sending ? 'Sending...' : 'Create Trip & Send Invites'}
             </Button>
           </DialogActions>
         </Dialog>
@@ -1993,7 +2068,7 @@ const TripDashboard = () => {
                     variant="contained"
                     onClick={() => {
                       setOpenRelationshipsDialog(false);
-                      setEditedGuests(trip.guests || []);
+                      setGuests(trip.guests || []);
                       setOpenGuestsDialog(true);
                     }}
                     startIcon={<EditIcon />}
@@ -2046,5 +2121,48 @@ function getExperienceTypeColor(type) {
       return "#2196f3"; // Blue
   }
 }
+
+// Different email templates for existing vs new users
+const sendEmailInvitation = async (email, trip, token) => {
+  const joinLink = `${process.env.APP_URL}/join-trip/${token}`;
+  
+  const emailTemplate = {
+    to: email,
+    subject: `You're invited to join ${trip.tripName}!`,
+    html: `
+      <h1>You're invited to join ${trip.tripName}!</h1>
+      <p>Trip Details:</p>
+      <ul>
+        <li>Dates: ${formatDate(trip.startDate)} - ${formatDate(trip.endDate)}</li>
+        <li>Location: ${trip.location}</li>
+        <li>Host: ${trip.host.name}</li>
+      </ul>
+      <a href="${joinLink}">Click here to create your account and join the trip!</a>
+    `
+  };
+  
+  return await sendGrid.send(emailTemplate);
+};
+
+const sendTripAddedEmail = async (email, trip) => {
+  const tripLink = `${process.env.APP_URL}/trips/${trip._id}`;
+  
+  const emailTemplate = {
+    to: email,
+    subject: `You've been added to ${trip.tripName}!`,
+    html: `
+      <h1>You've been added to ${trip.tripName}!</h1>
+      <p>Trip Details:</p>
+      <ul>
+        <li>Dates: ${formatDate(trip.startDate)} - ${formatDate(trip.endDate)}</li>
+        <li>Location: ${trip.location}</li>
+        <li>Host: ${trip.host.name}</li>
+      </ul>
+      <a href="${tripLink}">Click here to view the trip!</a>
+    `
+  };
+  
+  return await sendGrid.send(emailTemplate);
+};
 
 export default TripDashboard;
