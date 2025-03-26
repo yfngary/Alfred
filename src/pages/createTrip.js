@@ -202,6 +202,8 @@ const CreateTrip = () => {
     setActiveStep((prevStep) => prevStep - 1);
   };
 
+  const user = JSON.parse(localStorage.getItem("user"));
+
   const renderStepContent = (step) => {
     switch (step) {
       case 0:
@@ -227,7 +229,11 @@ const CreateTrip = () => {
         );
       case 3:
         return (
-          <GuestSelection formData={formData} updateFormData={updateFormData} />
+          <GuestSelection 
+            formData={formData} 
+            updateFormData={updateFormData}
+            userName={user.name}
+          />
         );
       case 4:
         return (

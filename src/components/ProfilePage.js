@@ -32,9 +32,11 @@ import {
   Group as GroupIcon,
   Logout as LogoutIcon,
 } from "@mui/icons-material";
+import { useUser } from "../context/UserContext";
 
 export default function ProfilePage() {
   const navigate = useNavigate();
+  const { user: contextUser, setUser: setContextUser } = useUser();
   const [user, setUser] = useState(null);
   const [message, setMessage] = useState("");
   const [friends, setFriends] = useState([]);
@@ -44,149 +46,115 @@ export default function ProfilePage() {
   const [isSearching, setIsSearching] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [apiError, setApiError] = useState(null);
+  
+  // Add a render counter for debugging
+  const renderCount = React.useRef(0);
+  renderCount.current++;
+
+  // Debug render cycles
+  console.log(`ProfilePage rendering #${renderCount.current}`, { 
+    contextUser: contextUser ? `id: ${contextUser.id || contextUser._id}` : 'none' 
+  });
+  
+  // Use a ref to track if this is the first mount
+  const isFirstMount = React.useRef(true);
+  // Use a ref to limit maximum renders
+  const maxRenders = React.useRef(10);
 
   useEffect(() => {
-    console.log("ProfilePage mounted, starting API calls");
+    // EMERGENCY FIX: If we're rendering too many times, force stop the cycle
+    if (renderCount.current > maxRenders.current) {
+      console.error(`Too many renders (${renderCount.current}), stopping render cycle`);
+      return;
+    }
+
+    console.log(`ProfilePage mounted, render #${renderCount.current}`);
+    let isMounted = true; // Add this to prevent state updates after unmounting
     
-    const fetchUserProfile = async () => {
-      setIsLoading(true);
-      setMessage("");
-      setApiError(null);
+    // Only run on first mount
+    if (isFirstMount.current) {
+      isFirstMount.current = false;
       
-      try {
-        // Step 1: Get auth token
-        const token = localStorage.getItem("token");
-        console.log("Auth token available:", !!token);
+      const fetchUserProfile = async () => {
+        if (!isMounted) return;
+        setIsLoading(true);
+        setMessage("");
+        setApiError(null);
         
-        if (!token) {
-          setMessage("Authentication token not found. Please log in again.");
-          setIsLoading(false);
-          return;
-        }
-        
-        // Step 2: Get user from localStorage
-        let currentUser;
         try {
-          currentUser = JSON.parse(localStorage.getItem("user"));
-          console.log("Current user from localStorage:", currentUser);
-        } catch (error) {
-          console.error("Error parsing user from localStorage:", error);
-          setMessage("Error reading user data. Please log in again.");
-          setIsLoading(false);
-          return;
-        }
-        
-        if (!currentUser || !currentUser.id) {
-          console.error("User ID missing from localStorage", currentUser);
-          setMessage("User information not found. Please log in again.");
-          setIsLoading(false);
-          return;
-        }
-
-        // Step 3: Use the user data directly from localStorage instead of making an API call
-        console.log("Using user data from localStorage instead of API call");
-        
-        // Create a user object from localStorage data
-        const userData = {
-          _id: currentUser.id || currentUser._id,
-          name: currentUser.name,
-          username: currentUser.email?.split('@')[0] || 'user',
-          email: currentUser.email,
-          profilePicture: currentUser.profilePicture || "default-avatar.png"
-        };
-        
-        console.log("Setting user state with localStorage data:", userData);
-        setUser(userData);
-        
-        // Add this for debugging - check URLs based on the updated backend routes
-        console.log("Available backend routes (for reference):");
-        console.log("- User profile: /api/users/:userId");
-        console.log("- User friends: /api/users/:userId/friends");
-        console.log("- User search: /api/users/searchUsers?query=X");
-        
-        // Try to fetch friends list if needed
-        try {
-          await fetchFriends(userData, userData._id);
-        } catch (friendsError) {
-          console.error("Could not fetch friends, but continuing with profile display:", friendsError);
-        }
-        
-        setIsLoading(false);
-      } catch (error) {
-        console.error("Error setting up profile:", error);
-        setMessage(`Error: ${error.message}`);
-        setApiError(error);
-        setIsLoading(false);
-      }
-    };
-
-    const fetchFriends = async (user, id) => {
-      try {
-        const token = localStorage.getItem("token");
-        
-        if (!user || !user._id) {
-          console.error("User ID is missing or invalid for friends fetch.");
-          return [];
-        }
-  
-        console.log(`Trying alternative endpoints for friends...`);
-        
-        // Try different possible API endpoints for friends
-        const possibleEndpoints = [
-          `/userApi/${id}/friends`,
-          `/api/users/${id}/friends`,
-          `/api/friends/${id}`,
-          `/api/user/friends`
-        ];
-        
-        let friends = [];
-        let success = false;
-        
-        for (let endpoint of possibleEndpoints) {
+          // Step 1: Get auth token
+          const token = localStorage.getItem("token");
+          console.log("Auth token available:", !!token);
+          
+          if (!token) {
+            setMessage("Authentication token not found. Please log in again.");
+            setIsLoading(false);
+            return;
+          }
+          
+          // SIMPLIFIED APPROACH: Only use localStorage, skip context updates
+          // This breaks potential circular dependencies
+          let currentUser;
           try {
-            console.log(`Attempting to fetch friends from: ${endpoint}`);
-            const response = await fetch(
-              `http://localhost:5001${endpoint}`,
-              {
-                headers: { Authorization: `Bearer ${token}` },
-              }
-            );
-            
-            if (response.ok) {
-              const result = await response.json();
-              console.log(`Success with endpoint ${endpoint}:`, result);
-              
-              if (result.friends && Array.isArray(result.friends)) {
-                friends = result.friends;
-                success = true;
-                break;
-              }
+            currentUser = JSON.parse(localStorage.getItem("user"));
+            console.log("Current user from localStorage:", currentUser);
+          } catch (error) {
+            console.error("Error parsing user from localStorage:", error);
+            if (isMounted) {
+              setMessage("Error reading user data. Please log in again.");
+              setIsLoading(false);
             }
-          } catch (err) {
-            console.warn(`Endpoint ${endpoint} failed:`, err);
+            return;
+          }
+          
+          if (!currentUser || !currentUser.id) {
+            console.error("User ID missing from localStorage", currentUser);
+            if (isMounted) {
+              setMessage("User information not found. Please log in again.");
+              setIsLoading(false);
+            }
+            return;
+          }
+
+          // Create a user object from localStorage data
+          const userData = {
+            _id: currentUser.id || currentUser._id,
+            name: currentUser.name,
+            username: currentUser.email?.split('@')[0] || 'user',
+            email: currentUser.email,
+            profilePicture: currentUser.profilePicture || "default-avatar.png"
+          };
+          
+          console.log("Setting user state with localStorage data:", userData);
+          if (isMounted) {
+            setUser(userData);
+            
+            // EMERGENCY FIX: Skip friends fetching entirely
+            // Just set an empty array to avoid network issues
+            setFriends([]);
+            
+            setIsLoading(false);
+          }
+        } catch (error) {
+          console.error("Error setting up profile:", error);
+          if (isMounted) {
+            setMessage(`Error: ${error.message}`);
+            setApiError(error);
+            setIsLoading(false);
           }
         }
-        
-        if (success) {
-          console.log("Setting friends state with:", friends);
-          setFriends(friends);
-        } else {
-          console.warn("Could not fetch friends from any endpoint, using empty array");
-          setFriends([]);
-        }
-      } catch (error) {
-        console.error("Error in friends fetch wrapper:", error);
-        setFriends([]);
-      }
-    };
-
-    fetchUserProfile();
+      };
+      
+      // Execute the function directly without delay
+      fetchUserProfile();
+    }
     
     // Cleanup function
     return () => {
-      console.log("ProfilePage unmounting");
+      console.log("ProfilePage unmounting, render count:", renderCount.current);
+      isMounted = false; // Prevent state updates after unmounting
     };
-  }, []);
+  }, []); // Keep the empty dependency array
 
   const handleSearchChange = async (e) => {
     const query = e.target.value;
@@ -291,11 +259,19 @@ export default function ProfilePage() {
   };
 
   const handleLogout = () => {
+    console.log("Logging out user");
+    
     // Clear authentication data
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     
-    // Redirect to login page
+    // Clear the user context
+    // Use a direct null assignment instead of calling setContextUser which might trigger renders
+    if (setContextUser) {
+      setContextUser(null);
+    }
+    
+    // Navigate after all cleanup is done
     navigate("/login");
   };
 

@@ -9,12 +9,14 @@ import {
   Box,
   Alert
 } from '@mui/material';
+import { useUser } from '../context/UserContext';
 
 const JoinTrip = () => {
   const [inviteCode, setInviteCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { setUser } = useUser();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -35,6 +37,23 @@ const JoinTrip = () => {
       }
 
       const data = await response.json();
+      
+      // Update user in localStorage if returned from the API
+      if (data.user) {
+        const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+        const updatedUser = {
+          ...currentUser,
+          ...data.user,
+          // Ensure we have the user id in both formats
+          id: data.user.id || data.user._id,
+          _id: data.user._id || data.user.id
+        };
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+        
+        // Also update user context
+        setUser(updatedUser);
+      }
+      
       // Navigate to the trip dashboard
       navigate(`/trips/${data.trip._id}`);
     } catch (error) {

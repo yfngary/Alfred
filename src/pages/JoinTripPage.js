@@ -12,6 +12,7 @@ import {
   Divider,
 } from "@mui/material";
 import { CheckCircle, Error as ErrorIcon, Login } from "@mui/icons-material";
+import { useUser } from '../context/UserContext';
 
 // Helper function to format dates
 const formatDate = (dateString) => {
@@ -22,6 +23,7 @@ const formatDate = (dateString) => {
 const JoinTripPage = () => {
   const { inviteCode } = useParams();
   const navigate = useNavigate();
+  const { setUser } = useUser();
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -76,6 +78,22 @@ const JoinTripPage = () => {
       // Set token in localStorage or handle via auth context
       localStorage.setItem("token", response.data.token);
       
+      // Also update user if it's in the response
+      if (response.data.user) {
+        // Ensure user ID consistency
+        const userData = {
+          ...response.data.user,
+          id: response.data.user.id || response.data.user._id,
+          _id: response.data.user._id || response.data.user.id
+        };
+        
+        // Save to localStorage
+        localStorage.setItem("user", JSON.stringify(userData));
+        
+        // Update user context
+        setUser(userData);
+      }
+      
       // Set axios default header for future requests
       axios.defaults.headers.common["Authorization"] = `Bearer ${response.data.token}`;
       
@@ -92,8 +110,47 @@ const JoinTripPage = () => {
   const handleJoinTrip = async () => {
     try {
       setLoading(true);
-      await axios.post(`/api/trips/join/${inviteCode}`);
+      const response = await axios.post(`/api/trips/join/${inviteCode}`);
       setJoinSuccess(true);
+      
+      // Check if we have user data and update localStorage
+      if (response.data.user) {
+        // Update with the user from response
+        const userData = {
+          ...response.data.user,
+          id: response.data.user.id || response.data.user._id,
+          _id: response.data.user._id || response.data.user.id
+        };
+        
+        // Save to localStorage
+        localStorage.setItem("user", JSON.stringify(userData));
+        
+        // Update user context
+        setUser(userData);
+      } else if (response.data && response.data.trip && response.data.trip.userId) {
+        // Get the current user data from localStorage as fallback
+        const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+        
+        // Make sure the user object is properly saved with all necessary fields
+        const updatedUser = {
+          ...currentUser,
+          // Ensure we have the user id in both formats
+          id: currentUser.id || currentUser._id,
+          _id: currentUser._id || currentUser.id
+        };
+        
+        // Save updated user to localStorage
+        localStorage.setItem("user", JSON.stringify(updatedUser));
+        
+        // Update user context
+        setUser(updatedUser);
+      }
+      
+      // Also check if we need to update the token
+      if (response.data.token) {
+        localStorage.setItem("token", response.data.token);
+        axios.defaults.headers.common["Authorization"] = `Bearer ${response.data.token}`;
+      }
       
       // After 2 seconds, redirect to the trip page
       setTimeout(() => {

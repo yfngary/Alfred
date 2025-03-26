@@ -420,11 +420,12 @@ const Dashboard = () => {
             p: { xs: 3, sm: 4 },
             mb: 3,
             borderRadius: 2,
-            backgroundImage: "linear-gradient(to right, #3f51b5, #2196f3)",
-            color: "white",
+            backgroundColor: "#1A1A1A",
+            color: "#FFFFFF",
             width: "100%",
             position: "relative",
-            flexShrink: 0
+            flexShrink: 0,
+            boxShadow: "0 0 10px rgba(0, 0, 0, 0.3)"
           }}
         >
           <Box
@@ -472,9 +473,9 @@ const Dashboard = () => {
                 startIcon={<AddIcon />}
                 onClick={() => navigate('/createTrip')}
                 sx={{
-                  bgcolor: 'rgba(255, 255, 255, 0.2)',
+                  bgcolor: '#3366FF',
                   '&:hover': {
-                    bgcolor: 'rgba(255, 255, 255, 0.3)',
+                    bgcolor: '#2855E6',
                   },
                   fontWeight: "bold",
                   borderRadius: 2,

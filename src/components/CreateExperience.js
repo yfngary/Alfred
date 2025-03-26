@@ -2,6 +2,10 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import { TimePicker } from '@mui/x-date-pickers/TimePicker';
+import dayjs from 'dayjs';
 import usePlacesAutocomplete, {
   getGeocode,
   getLatLng,
@@ -52,8 +56,9 @@ import {
   Save
 } from "@mui/icons-material";
 
-export default function CreateExperience() {
-  const { tripId } = useParams();
+export default function CreateExperience({ id }) {
+  const params = useParams();
+  const tripId = id || params.id;
   const navigate = useNavigate();
 
   // Form state
@@ -149,10 +154,16 @@ export default function CreateExperience() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    console.log(`handleChange called: field=${name}, value=${value}`);
+    
+    setFormData(prev => {
+      const updatedData = {
+        ...prev,
+        [name]: value
+      };
+      console.log('Updated formData:', updatedData);
+      return updatedData;
+    });
     
     // Clear validation error when field is edited
     if (errors[name]) {
@@ -327,7 +338,7 @@ export default function CreateExperience() {
       // Add the experience data as a string
       formDataObj.append('experienceData', JSON.stringify(experienceData));
 
-      const response = await fetch(`http://localhost:5001/api/${tripId}/experiences`, {
+      const response = await fetch(`http://localhost:5001/api/trips/${tripId}/experiences`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -390,133 +401,102 @@ export default function CreateExperience() {
   }
 
   return (
-    <Container maxWidth="md">
-      <Paper elevation={3} sx={{ p: 4, mt: 4, mb: 4, borderRadius: 2 }}>
-        <Typography variant="h4" component="h1" gutterBottom align="center">
-          Create Experience
-        </Typography>
-        
-        {error && (
-          <Alert severity="error" sx={{ mb: 3 }}>
-            {error}
-          </Alert>
-        )}
-        
-        {success && (
-          <Alert severity="success" sx={{ mb: 3 }}>
-            {success}
-          </Alert>
-        )}
-        
-        <Stepper activeStep={activeStep} alternativeLabel sx={{ mb: 4 }}>
-          {steps.map((label) => (
-            <Step key={label}>
-              <StepLabel>{label}</StepLabel>
-            </Step>
-          ))}
-        </Stepper>
-        
-        <Box sx={{ mt: 4, mb: 4 }}>
-          {/* Step 1: Select Guests */}
-          {activeStep === 0 && (
-            <Box>
-              <Typography variant="h6" gutterBottom>
-                <PersonAdd sx={{ mr: 1, verticalAlign: "middle" }} />
-                Who's participating?
-              </Typography>
-              
-              {errors.selectedGuests && (
-                <Alert severity="error" sx={{ mb: 2 }}>
-                  {errors.selectedGuests}
-                </Alert>
-              )}
-              
-              {trip?.guests && trip.guests.length > 0 ? (
-                <Grid container spacing={2}>
-                  {trip.guests.map((guest) => (
-                    <Grid item xs={6} sm={4} key={guest._id}>
-                      <Card 
-                        variant="outlined" 
-                        sx={{ 
-                          cursor: "pointer",
-                          bgcolor: formData.selectedGuests.includes(guest.name) ? "primary.light" : "background.paper",
-                          transition: "all 0.3s"
-                        }}
-                        onClick={() => handleGuestSelection(guest.name)}
-                      >
-                        <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
-                          <Box display="flex" alignItems="center">
-                            <Avatar sx={{ mr: 1, bgcolor: formData.selectedGuests.includes(guest.name) ? "primary.dark" : "grey.400" }}>
-                              {guest.name.charAt(0)}
-                            </Avatar>
-                            <Typography>
-                              {guest.name}
-                            </Typography>
-                          </Box>
-                        </CardContent>
-                      </Card>
-                    </Grid>
-                  ))}
-                </Grid>
-              ) : (
-                <Alert severity="info">
-                  No guests found for this trip. Please add guests to the trip first.
-                </Alert>
-              )}
-            </Box>
+    <LocalizationProvider dateAdapter={AdapterDayjs}>
+      <Container maxWidth="md">
+        <Paper elevation={3} sx={{ p: 4, mt: 4, mb: 4, borderRadius: 2 }}>
+          <Typography variant="h4" component="h1" gutterBottom align="center">
+            Create Experience
+          </Typography>
+          
+          {error && (
+            <Alert severity="error" sx={{ mb: 3 }}>
+              {error}
+            </Alert>
           )}
           
-          {/* Step 2: Date & Time */}
-          {activeStep === 1 && (
-            <Box>
-              <Typography variant="h6" gutterBottom>
-                <Event sx={{ mr: 1, verticalAlign: "middle" }} />
-                When is it happening?
-              </Typography>
-              
-              <Grid container spacing={3}>
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="subtitle1" gutterBottom>
-                    Date
-                  </Typography>
-                  <DatePicker
-                    selected={formData.date}
-                    onChange={(date) => {
-                      setFormData(prev => ({ ...prev, date }));
-                      if (errors.date) setErrors(prev => ({ ...prev, date: "" }));
-                    }}
-                    customInput={
-                      <TextField 
-                        fullWidth 
-                        variant="outlined"
-                        error={!!errors.date}
-                        helperText={errors.date}
-                      />
-                    }
-                    minDate={new Date()}
-                  />
-                </Grid>
+          {success && (
+            <Alert severity="success" sx={{ mb: 3 }}>
+              {success}
+            </Alert>
+          )}
+          
+          <Stepper activeStep={activeStep} alternativeLabel sx={{ mb: 4 }}>
+            {steps.map((label) => (
+              <Step key={label}>
+                <StepLabel>{label}</StepLabel>
+              </Step>
+            ))}
+          </Stepper>
+          
+          <Box sx={{ mt: 4, mb: 4 }}>
+            {/* Step 1: Select Guests */}
+            {activeStep === 0 && (
+              <Box>
+                <Typography variant="h6" gutterBottom>
+                  <PersonAdd sx={{ mr: 1, verticalAlign: "middle" }} />
+                  Who's participating?
+                </Typography>
                 
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="subtitle1" gutterBottom>
-                    Start Time
-                  </Typography>
-                  <TextField
-                    type="time"
-                    fullWidth
-                    variant="outlined"
-                    name="startTime"
-                    value={formData.startTime}
-                    onChange={handleChange}
-                    error={!!errors.startTime}
-                    helperText={errors.startTime}
-                    InputProps={{
-                      startAdornment: <AccessTime color="action" sx={{ mr: 1 }} />,
-                    }}
-                  />
-                </Grid>
+                {errors.selectedGuests && (
+                  <Alert severity="error" sx={{ mb: 2 }}>
+                    {errors.selectedGuests}
+                  </Alert>
+                )}
                 
-                <Grid item xs={12}>
+                {trip?.guests && trip.guests.length > 0 ? (
+                  <Grid container spacing={2}>
+                    {trip.guests.map((guest) => (
+                      <Grid item xs={6} sm={4} key={guest._id}>
+                        <Card 
+                          variant="outlined" 
+                          sx={{ 
+                            cursor: "pointer",
+                            bgcolor: formData.selectedGuests.includes(guest.name) ? "primary.light" : "background.paper",
+                            transition: "all 0.3s"
+                          }}
+                          onClick={() => handleGuestSelection(guest.name)}
+                        >
+                          <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+                            <Box display="flex" alignItems="center">
+                              <Avatar sx={{ mr: 1, bgcolor: formData.selectedGuests.includes(guest.name) ? "primary.dark" : "grey.400" }}>
+                                {guest.name.charAt(0)}
+                              </Avatar>
+                              <Typography>
+                                {guest.name}
+                              </Typography>
+                            </Box>
+                          </CardContent>
+                        </Card>
+                      </Grid>
+                    ))}
+                  </Grid>
+                ) : (
+                  <Alert severity="info">
+                    No guests found for this trip. Please add guests to the trip first.
+                  </Alert>
+                )}
+              </Box>
+            )}
+            
+            {/* Step 2: Date & Time */}
+            {activeStep === 1 && (
+              <Box>
+                <Typography variant="h6" gutterBottom>
+                  <Event sx={{ mr: 1, verticalAlign: "middle" }} />
+                  When is it happening?
+                </Typography>
+                
+                {/* Duration type selector */}
+                <Paper 
+                  variant="outlined" 
+                  sx={{ 
+                    p: 2, 
+                    mb: 3, 
+                    borderColor: 'divider',
+                    display: 'flex',
+                    justifyContent: 'center'
+                  }}
+                >
                   <FormControlLabel
                     control={
                       <Checkbox
@@ -532,429 +512,565 @@ export default function CreateExperience() {
                         color="primary"
                       />
                     }
-                    label="This is a multi-day experience"
+                    label={
+                      <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
+                        This is a multi-day experience
+                      </Typography>
+                    }
                   />
-                </Grid>
+                </Paper>
                 
-                {formData.isMultiDay ? (
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant="subtitle1" gutterBottom>
-                      End Date
+                {/* Single day or multi-day form */}
+                <Paper 
+                  variant="outlined" 
+                  sx={{ 
+                    p: 3, 
+                    borderColor: 'divider', 
+                    borderRadius: 2,
+                    bgcolor: 'background.paper'
+                  }}
+                >
+                  {/* Common header */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <AccessTime color="primary" sx={{ mr: 1 }} />
+                    <Typography variant="h6">
+                      {formData.isMultiDay ? 'Multi-Day Experience' : 'Single Day Experience'}
                     </Typography>
-                    <DatePicker
-                      selected={formData.endDate}
-                      onChange={(date) => {
-                        setFormData(prev => ({ ...prev, endDate: date }));
-                        if (errors.endDate) setErrors(prev => ({ ...prev, endDate: "" }));
-                      }}
-                      customInput={
-                        <TextField 
-                          fullWidth 
-                          variant="outlined"
-                          error={!!errors.endDate}
-                          helperText={errors.endDate}
+                  </Box>
+                  
+                  <Divider sx={{ mb: 3 }} />
+                  
+                  <Grid container spacing={3}>
+                    {/* Start date - common to both types */}
+                    <Grid item xs={12} sm={formData.isMultiDay ? 6 : 6}>
+                      <Box sx={{ mb: 1 }}>
+                        <Typography variant="subtitle2" color="primary" gutterBottom>
+                          Start Date
+                        </Typography>
+                        <DatePicker
+                          selected={formData.date}
+                          onChange={(date) => {
+                            setFormData(prev => ({ ...prev, date }));
+                            if (errors.date) setErrors(prev => ({ ...prev, date: "" }));
+                          }}
+                          customInput={
+                            <TextField 
+                              fullWidth 
+                              variant="outlined"
+                              placeholder="Select date"
+                              error={!!errors.date}
+                              helperText={errors.date}
+                              InputProps={{
+                                startAdornment: <Event color="action" sx={{ mr: 1 }} />,
+                              }}
+                            />
+                          }
+                          minDate={new Date()}
                         />
-                      }
-                      minDate={formData.date || new Date()}
-                    />
-                  </Grid>
-                ) : (
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant="subtitle1" gutterBottom>
-                      End Time
-                    </Typography>
-                    <TextField
-                      type="time"
-                      fullWidth
-                      variant="outlined"
-                      name="endTime"
-                      value={formData.endTime}
-                      onChange={handleChange}
-                      error={!!errors.endTime}
-                      helperText={errors.endTime}
-                      InputProps={{
-                        startAdornment: <AccessTime color="action" sx={{ mr: 1 }} />,
-                      }}
-                    />
-                  </Grid>
-                )}
-              </Grid>
-            </Box>
-          )}
-          
-          {/* Step 3: Experience Type */}
-          {activeStep === 2 && (
-            <Box>
-              <Typography variant="h6" gutterBottom>
-                <CategoryOutlined sx={{ mr: 1, verticalAlign: "middle" }} />
-                What type of experience is this?
-              </Typography>
-              
-              <Grid container spacing={3}>
-                <Grid item xs={12}>
-                  <FormControl fullWidth error={!!errors.experienceType}>
-                    <InputLabel>Experience Type</InputLabel>
-                    <Select
-                      name="experienceType"
-                      value={formData.experienceType}
-                      onChange={handleChange}
-                      label="Experience Type"
-                    >
-                      <MenuItem value="activity">
-                        <DirectionsRun sx={{ mr: 1 }} /> Activity
-                      </MenuItem>
-                      <MenuItem value="meal">
-                        <LocalDining sx={{ mr: 1 }} /> Meal
-                      </MenuItem>
-                      <MenuItem value="other">
-                        <CategoryOutlined sx={{ mr: 1 }} /> Other
-                      </MenuItem>
-                    </Select>
-                    {errors.experienceType && (
-                      <FormHelperText>{errors.experienceType}</FormHelperText>
+                      </Box>
+                    </Grid>
+                    
+                    {/* End date - only for multi-day */}
+                    {formData.isMultiDay && (
+                      <Grid item xs={12} sm={6}>
+                        <Box sx={{ mb: 1 }}>
+                          <Typography variant="subtitle2" color="primary" gutterBottom>
+                            End Date
+                          </Typography>
+                          <DatePicker
+                            selected={formData.endDate}
+                            onChange={(date) => {
+                              setFormData(prev => ({ ...prev, endDate: date }));
+                              if (errors.endDate) setErrors(prev => ({ ...prev, endDate: "" }));
+                            }}
+                            customInput={
+                              <TextField 
+                                fullWidth 
+                                variant="outlined"
+                                placeholder="Select end date"
+                                error={!!errors.endDate}
+                                helperText={errors.endDate}
+                                InputProps={{
+                                  startAdornment: <Event color="action" sx={{ mr: 1 }} />,
+                                }}
+                              />
+                            }
+                            minDate={formData.date || new Date()}
+                          />
+                        </Box>
+                      </Grid>
                     )}
-                  </FormControl>
-                </Grid>
+                    
+                    {/* Time section - layout changes based on single/multi-day */}
+                    <Grid item xs={12}>
+                      <Box sx={{ mt: formData.isMultiDay ? 2 : 0 }}>
+                        <Typography variant="subtitle2" color="primary" gutterBottom>
+                          Time
+                        </Typography>
+                        <Grid container spacing={2}>
+                          <Grid item xs={12} sm={formData.isMultiDay ? 12 : 6}>
+                            <Box sx={{ mb: 1 }}>
+                              <Typography variant="subtitle2" color="primary" gutterBottom>
+                                Start Time
+                              </Typography>
+                              <TimePicker
+                                value={formData.startTime ? dayjs(formData.startTime, 'HH:mm') : null}
+                                ampm={false}
+                                format="HH:mm"
+                                views={['hours', 'minutes']}
+                                onChange={(newValue) => {
+                                  console.log("TimePicker value changed:", newValue);
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    startTime: newValue ? newValue.format('HH:mm') : ''
+                                  }));
+                                  if (errors.startTime) {
+                                    setErrors(prev => ({ ...prev, startTime: "" }));
+                                  }
+                                }}
+                                slotProps={{
+                                  textField: {
+                                    fullWidth: true,
+                                    variant: "outlined",
+                                    error: !!errors.startTime,
+                                    helperText: errors.startTime,
+                                    placeholder: "Select time (24h)",
+                                    InputProps: {
+                                      startAdornment: <AccessTime color="action" sx={{ mr: 1 }} />
+                                    }
+                                  }
+                                }}
+                              />
+                            </Box>
+                          </Grid>
+                          
+                          {!formData.isMultiDay && (
+                            <Grid item xs={12} sm={6}>
+                              <Box sx={{ mb: 1 }}>
+                                <Typography variant="subtitle2" color="primary" gutterBottom>
+                                  End Time
+                                </Typography>
+                                <TimePicker
+                                  value={formData.endTime ? dayjs(formData.endTime, 'HH:mm') : null}
+                                  ampm={false}
+                                  format="HH:mm"
+                                  views={['hours', 'minutes']}
+                                  onChange={(newValue) => {
+                                    console.log("End time changed:", newValue);
+                                    setFormData(prev => ({
+                                      ...prev,
+                                      endTime: newValue ? newValue.format('HH:mm') : ''
+                                    }));
+                                    if (errors.endTime) {
+                                      setErrors(prev => ({ ...prev, endTime: "" }));
+                                    }
+                                  }}
+                                  slotProps={{
+                                    textField: {
+                                      fullWidth: true,
+                                      variant: "outlined",
+                                      error: !!errors.endTime,
+                                      helperText: errors.endTime,
+                                      placeholder: "Select time (24h)",
+                                      InputProps: {
+                                        startAdornment: <AccessTime color="action" sx={{ mr: 1 }} />
+                                      }
+                                    }
+                                  }}
+                                />
+                              </Box>
+                            </Grid>
+                          )}
+                        </Grid>
+                      </Box>
+                    </Grid>
+                  </Grid>
+                  
+                  {/* Helpful tip */}
+                  <Box sx={{ mt: 3, display: 'flex', alignItems: 'center', bgcolor: 'info.light', p: 1.5, borderRadius: 1 }}>
+                    <Typography variant="body2" color="info.dark">
+                      {formData.isMultiDay 
+                        ? "For multi-day experiences, only start time is required. End times can be set individually for each day." 
+                        : "If the exact end time is unknown, provide your best estimate."}
+                    </Typography>
+                  </Box>
+                </Paper>
+              </Box>
+            )}
+            
+            {/* Step 3: Experience Type */}
+            {activeStep === 2 && (
+              <Box>
+                <Typography variant="h6" gutterBottom>
+                  <CategoryOutlined sx={{ mr: 1, verticalAlign: "middle" }} />
+                  What type of experience is this?
+                </Typography>
                 
-                {formData.experienceType === "meal" && (
+                <Grid container spacing={3}>
                   <Grid item xs={12}>
-                    <FormControl fullWidth error={!!errors.mealType}>
-                      <InputLabel>Meal Type</InputLabel>
+                    <FormControl fullWidth error={!!errors.experienceType}>
+                      <InputLabel>Experience Type</InputLabel>
                       <Select
-                        name="mealType"
-                        value={formData.mealType}
+                        name="experienceType"
+                        value={formData.experienceType}
                         onChange={handleChange}
-                        label="Meal Type"
+                        label="Experience Type"
                       >
-                        <MenuItem value="restaurant">Restaurant</MenuItem>
-                        <MenuItem value="home">Home Cooked</MenuItem>
-                        <MenuItem value="picnic">Picnic</MenuItem>
-                        <MenuItem value="delivery">Delivery</MenuItem>
+                        <MenuItem value="activity">
+                          <DirectionsRun sx={{ mr: 1 }} /> Activity
+                        </MenuItem>
+                        <MenuItem value="meal">
+                          <LocalDining sx={{ mr: 1 }} /> Meal
+                        </MenuItem>
+                        <MenuItem value="other">
+                          <CategoryOutlined sx={{ mr: 1 }} /> Other
+                        </MenuItem>
                       </Select>
-                      {errors.mealType && (
-                        <FormHelperText>{errors.mealType}</FormHelperText>
+                      {errors.experienceType && (
+                        <FormHelperText>{errors.experienceType}</FormHelperText>
                       )}
                     </FormControl>
                   </Grid>
-                )}
-              </Grid>
-            </Box>
-          )}
-          
-          {/* Step 4: Title & Notes */}
-          {activeStep === 3 && (
-            <Box>
-              <Typography variant="h6" gutterBottom>
-                <Note sx={{ mr: 1, verticalAlign: "middle" }} />
-                Title & Details
-              </Typography>
-              
-              <Grid container spacing={3}>
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    label="Experience Title"
-                    name="title"
-                    value={formData.title}
-                    onChange={handleChange}
-                    variant="outlined"
-                    error={!!errors.title}
-                    helperText={errors.title || "Give your experience a memorable name"}
-                  />
-                </Grid>
-                
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    label="Notes & Details"
-                    name="notes"
-                    value={formData.notes}
-                    onChange={handleChange}
-                    variant="outlined"
-                    multiline
-                    rows={4}
-                    placeholder="Add any details about this experience (e.g., what to bring, dress code, reservations needed)"
-                  />
-                </Grid>
-                
-                <Grid item xs={12}>
-                  <Typography variant="subtitle1" gutterBottom>
-                    <AttachFile sx={{ mr: 1, verticalAlign: "middle" }} />
-                    Attachments
-                  </Typography>
                   
-                  <Button
-                    variant="outlined"
-                    component="label"
-                    startIcon={<FileUpload />}
-                    sx={{ mb: 2 }}
-                  >
-                    Upload Files
-                    <input
-                      type="file"
-                      multiple
-                      hidden
-                      onChange={handleFileUpload}
-                    />
-                  </Button>
-                  
-                  {formData.attachments.length > 0 && (
-                    <Box sx={{ mt: 2 }}>
-                      <Typography variant="subtitle2" gutterBottom>
-                        {formData.attachments.length} file(s) selected
-                      </Typography>
-                      <Paper variant="outlined" sx={{ p: 2 }}>
-                        {formData.attachments.map((file, index) => (
-                          <Box 
-                            key={index} 
-                            sx={{ 
-                              display: "flex", 
-                              justifyContent: "space-between", 
-                              alignItems: "center",
-                              mb: 1,
-                              pb: 1,
-                              borderBottom: index < formData.attachments.length - 1 ? "1px solid #eee" : "none"
-                            }}
-                          >
-                            <Typography variant="body2" noWrap sx={{ maxWidth: "80%" }}>
-                              {file.name} ({(file.size / 1024).toFixed(1)} KB)
-                            </Typography>
-                            <IconButton 
-                              size="small" 
-                              color="error"
-                              onClick={() => removeFile(index)}
-                            >
-                              <Close fontSize="small" />
-                            </IconButton>
-                          </Box>
-                        ))}
-                      </Paper>
-                    </Box>
-                  )}
-                </Grid>
-              </Grid>
-            </Box>
-          )}
-          
-          {/* Step 5: Location */}
-          {activeStep === 4 && (
-            <Box>
-              <Typography variant="h6" gutterBottom>
-                <Place sx={{ mr: 1, verticalAlign: "middle" }} />
-                Where is it happening?
-              </Typography>
-              
-              {errors.location && (
-                <Alert severity="error" sx={{ mb: 2 }}>
-                  {errors.location}
-                </Alert>
-              )}
-              
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={formData.useCustomLocation}
-                    onChange={() => {
-                      setFormData(prev => ({ 
-                        ...prev, 
-                        useCustomLocation: !prev.useCustomLocation,
-                        location: ""
-                      }));
-                      setValue("");
-                    }}
-                    color="primary"
-                  />
-                }
-                label="Enter custom location instead of searching"
-              />
-              
-              {formData.useCustomLocation ? (
-                <TextField
-                  fullWidth
-                  label="Custom Location"
-                  name="location"
-                  value={formData.location}
-                  onChange={(e) => {
-                    setFormData(prev => ({ ...prev, location: e.target.value }));
-                    if (errors.location) setErrors(prev => ({ ...prev, location: "" }));
-                  }}
-                  variant="outlined"
-                  sx={{ mt: 2 }}
-                />
-              ) : (
-                <div ref={ref} style={{ position: 'relative', marginTop: '16px' }}>
-                  <TextField
-                    fullWidth
-                    label="Search for a location"
-                    value={value}
-                    onChange={(e) => {
-                      setValue(e.target.value);
-                      if (errors.location) setErrors(prev => ({ ...prev, location: "" }));
-                    }}
-                    variant="outlined"
-                    InputProps={{
-                      startAdornment: <Place color="action" sx={{ mr: 1 }} />,
-                    }}
-                  />
-                  
-                  {status === "OK" && (
-                    <Paper 
-                      sx={{ 
-                        position: 'absolute', 
-                        width: '100%', 
-                        zIndex: 1000,
-                        mt: 1,
-                        maxHeight: '200px',
-                        overflow: 'auto'
-                      }}
-                    >
-                      {data.map(({ place_id, description }) => (
-                        <Typography
-                          key={place_id}
-                          onClick={() => handleLocationSelect(description)}
-                          sx={{
-                            p: 2,
-                            cursor: 'pointer',
-                            '&:hover': {
-                              backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                            },
-                          }}
+                  {formData.experienceType === "meal" && (
+                    <Grid item xs={12}>
+                      <FormControl fullWidth error={!!errors.mealType}>
+                        <InputLabel>Meal Type</InputLabel>
+                        <Select
+                          name="mealType"
+                          value={formData.mealType}
+                          onChange={handleChange}
+                          label="Meal Type"
                         >
-                          {description}
-                        </Typography>
-                      ))}
-                    </Paper>
+                          <MenuItem value="restaurant">Restaurant</MenuItem>
+                          <MenuItem value="home">Home Cooked</MenuItem>
+                          <MenuItem value="picnic">Picnic</MenuItem>
+                          <MenuItem value="delivery">Delivery</MenuItem>
+                        </Select>
+                        {errors.mealType && (
+                          <FormHelperText>{errors.mealType}</FormHelperText>
+                        )}
+                      </FormControl>
+                    </Grid>
                   )}
-                </div>
-              )}
-            </Box>
-          )}
-          
-          {/* Step 6: Review & Submit */}
-          {activeStep === 5 && (
-            <Box>
-              <Typography variant="h6" gutterBottom>
-                Review & Confirm
-              </Typography>
-              
-              <Paper variant="outlined" sx={{ p: 3, mb: 3 }}>
-                <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-                  <Avatar sx={{ bgcolor: "primary.main", mr: 2 }}>
-                    {getExperienceTypeIcon(formData.experienceType)}
-                  </Avatar>
-                  <Typography variant="h5">{formData.title}</Typography>
-                </Box>
+                </Grid>
+              </Box>
+            )}
+            
+            {/* Step 4: Title & Notes */}
+            {activeStep === 3 && (
+              <Box>
+                <Typography variant="h6" gutterBottom>
+                  <Note sx={{ mr: 1, verticalAlign: "middle" }} />
+                  Title & Details
+                </Typography>
                 
-                <Divider sx={{ mb: 2 }} />
-                
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant="subtitle2" color="text.secondary">
-                      <Event fontSize="small" sx={{ mr: 0.5, verticalAlign: "middle" }} />
-                      Date & Time
-                    </Typography>
-                    <Typography variant="body1">
-                      {formData.date ? formData.date.toLocaleDateString() : 'Not set'} 
-                      {formData.startTime && ` at ${formData.startTime}`}
-                      {!formData.isMultiDay && formData.endTime && ` - ${formData.endTime}`}
-                    </Typography>
-                    {formData.isMultiDay && formData.endDate && (
-                      <Typography variant="body2">
-                        Until: {formData.endDate.toLocaleDateString()}
-                      </Typography>
-                    )}
-                  </Grid>
-                  
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant="subtitle2" color="text.secondary">
-                      <Place fontSize="small" sx={{ mr: 0.5, verticalAlign: "middle" }} />
-                      Location
-                    </Typography>
-                    <Typography variant="body1">
-                      {formData.location || 'Not specified'}
-                    </Typography>
+                <Grid container spacing={3}>
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      label="Experience Title"
+                      name="title"
+                      value={formData.title}
+                      onChange={handleChange}
+                      variant="outlined"
+                      error={!!errors.title}
+                      helperText={errors.title || "Give your experience a memorable name"}
+                    />
                   </Grid>
                   
                   <Grid item xs={12}>
-                    <Typography variant="subtitle2" color="text.secondary">
-                      <PersonAdd fontSize="small" sx={{ mr: 0.5, verticalAlign: "middle" }} />
-                      Participants
-                    </Typography>
-                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mt: 1 }}>
-                      {formData.selectedGuests.map((guest, index) => (
-                        <Chip
-                          key={index}
-                          avatar={<Avatar>{guest.charAt(0)}</Avatar>}
-                          label={guest}
-                          size="small"
-                        />
-                      ))}
-                    </Box>
+                    <TextField
+                      fullWidth
+                      label="Notes & Details"
+                      name="notes"
+                      value={formData.notes}
+                      onChange={handleChange}
+                      variant="outlined"
+                      multiline
+                      rows={4}
+                      placeholder="Add any details about this experience (e.g., what to bring, dress code, reservations needed)"
+                    />
                   </Grid>
                   
-                  {formData.notes && (
-                    <Grid item xs={12}>
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle1" gutterBottom>
+                      <AttachFile sx={{ mr: 1, verticalAlign: "middle" }} />
+                      Attachments
+                    </Typography>
+                    
+                    <Button
+                      variant="outlined"
+                      component="label"
+                      startIcon={<FileUpload />}
+                      sx={{ mb: 2 }}
+                    >
+                      Upload Files
+                      <input
+                        type="file"
+                        multiple
+                        hidden
+                        onChange={handleFileUpload}
+                      />
+                    </Button>
+                    
+                    {formData.attachments.length > 0 && (
+                      <Box sx={{ mt: 2 }}>
+                        <Typography variant="subtitle2" gutterBottom>
+                          {formData.attachments.length} file(s) selected
+                        </Typography>
+                        <Paper variant="outlined" sx={{ p: 2 }}>
+                          {formData.attachments.map((file, index) => (
+                            <Box 
+                              key={index} 
+                              sx={{ 
+                                display: "flex", 
+                                justifyContent: "space-between", 
+                                alignItems: "center",
+                                mb: 1,
+                                pb: 1,
+                                borderBottom: index < formData.attachments.length - 1 ? "1px solid #eee" : "none"
+                              }}
+                            >
+                              <Typography variant="body2" noWrap sx={{ maxWidth: "80%" }}>
+                                {file.name} ({(file.size / 1024).toFixed(1)} KB)
+                              </Typography>
+                              <IconButton 
+                                size="small" 
+                                color="error"
+                                onClick={() => removeFile(index)}
+                              >
+                                <Close fontSize="small" />
+                              </IconButton>
+                            </Box>
+                          ))}
+                        </Paper>
+                      </Box>
+                    )}
+                  </Grid>
+                </Grid>
+              </Box>
+            )}
+            
+            {/* Step 5: Location */}
+            {activeStep === 4 && (
+              <Box>
+                <Typography variant="h6" gutterBottom>
+                  <Place sx={{ mr: 1, verticalAlign: "middle" }} />
+                  Where is it happening?
+                </Typography>
+                
+                {errors.location && (
+                  <Alert severity="error" sx={{ mb: 2 }}>
+                    {errors.location}
+                  </Alert>
+                )}
+                
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={formData.useCustomLocation}
+                      onChange={() => {
+                        setFormData(prev => ({ 
+                          ...prev, 
+                          useCustomLocation: !prev.useCustomLocation,
+                          location: ""
+                        }));
+                        setValue("");
+                      }}
+                      color="primary"
+                    />
+                  }
+                  label="Enter custom location instead of searching"
+                />
+                
+                {formData.useCustomLocation ? (
+                  <TextField
+                    fullWidth
+                    label="Custom Location"
+                    name="location"
+                    value={formData.location}
+                    onChange={(e) => {
+                      setFormData(prev => ({ ...prev, location: e.target.value }));
+                      if (errors.location) setErrors(prev => ({ ...prev, location: "" }));
+                    }}
+                    variant="outlined"
+                    sx={{ mt: 2 }}
+                  />
+                ) : (
+                  <div ref={ref} style={{ position: 'relative', marginTop: '16px' }}>
+                    <TextField
+                      fullWidth
+                      label="Search for a location"
+                      value={value}
+                      onChange={(e) => {
+                        setValue(e.target.value);
+                        if (errors.location) setErrors(prev => ({ ...prev, location: "" }));
+                      }}
+                      variant="outlined"
+                      InputProps={{
+                        startAdornment: <Place color="action" sx={{ mr: 1 }} />,
+                      }}
+                    />
+                    
+                    {status === "OK" && (
+                      <Paper 
+                        sx={{ 
+                          position: 'absolute', 
+                          width: '100%', 
+                          zIndex: 1000,
+                          mt: 1,
+                          maxHeight: '200px',
+                          overflow: 'auto'
+                        }}
+                      >
+                        {data.map(({ place_id, description }) => (
+                          <Typography
+                            key={place_id}
+                            onClick={() => handleLocationSelect(description)}
+                            sx={{
+                              p: 2,
+                              cursor: 'pointer',
+                              '&:hover': {
+                                backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                              },
+                            }}
+                          >
+                            {description}
+                          </Typography>
+                        ))}
+                      </Paper>
+                    )}
+                  </div>
+                )}
+              </Box>
+            )}
+            
+            {/* Step 6: Review & Submit */}
+            {activeStep === 5 && (
+              <Box>
+                <Typography variant="h6" gutterBottom>
+                  Review & Confirm
+                </Typography>
+                
+                <Paper variant="outlined" sx={{ p: 3, mb: 3 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+                    <Avatar sx={{ bgcolor: "primary.main", mr: 2 }}>
+                      {getExperienceTypeIcon(formData.experienceType)}
+                    </Avatar>
+                    <Typography variant="h5">{formData.title}</Typography>
+                  </Box>
+                  
+                  <Divider sx={{ mb: 2 }} />
+                  
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} sm={6}>
                       <Typography variant="subtitle2" color="text.secondary">
-                        <Note fontSize="small" sx={{ mr: 0.5, verticalAlign: "middle" }} />
-                        Notes
+                        <Event fontSize="small" sx={{ mr: 0.5, verticalAlign: "middle" }} />
+                        Date & Time
                       </Typography>
                       <Typography variant="body1">
-                        {formData.notes}
+                        {formData.date ? formData.date.toLocaleDateString() : 'Not set'} 
+                        {formData.startTime && ` at ${formData.startTime}`}
+                        {!formData.isMultiDay && formData.endTime && ` - ${formData.endTime}`}
+                      </Typography>
+                      {formData.isMultiDay && formData.endDate && (
+                        <Typography variant="body2">
+                          Until: {formData.endDate.toLocaleDateString()}
+                        </Typography>
+                      )}
+                    </Grid>
+                    
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="subtitle2" color="text.secondary">
+                        <Place fontSize="small" sx={{ mr: 0.5, verticalAlign: "middle" }} />
+                        Location
+                      </Typography>
+                      <Typography variant="body1">
+                        {formData.location || 'Not specified'}
                       </Typography>
                     </Grid>
-                  )}
-                  
-                  {formData.attachments.length > 0 && (
+                    
                     <Grid item xs={12}>
                       <Typography variant="subtitle2" color="text.secondary">
-                        <AttachFile fontSize="small" sx={{ mr: 0.5, verticalAlign: "middle" }} />
-                        Attachments
+                        <PersonAdd fontSize="small" sx={{ mr: 0.5, verticalAlign: "middle" }} />
+                        Participants
                       </Typography>
-                      <Typography variant="body2">
-                        {formData.attachments.length} file(s) attached
-                      </Typography>
+                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mt: 1 }}>
+                        {formData.selectedGuests.map((guest, index) => (
+                          <Chip
+                            key={index}
+                            avatar={<Avatar>{guest.charAt(0)}</Avatar>}
+                            label={guest}
+                            size="small"
+                          />
+                        ))}
+                      </Box>
                     </Grid>
-                  )}
-                </Grid>
-              </Paper>
-            </Box>
-          )}
-        </Box>
-        
-        <Divider sx={{ mt: 2, mb: 2 }} />
-        
-        <Box sx={{ display: "flex", justifyContent: "space-between" }}>
-          <Button
-            disabled={activeStep === 0 || submitting}
-            onClick={handleBack}
-            startIcon={<ArrowBack />}
-          >
-            Back
-          </Button>
+                    
+                    {formData.notes && (
+                      <Grid item xs={12}>
+                        <Typography variant="subtitle2" color="text.secondary">
+                          <Note fontSize="small" sx={{ mr: 0.5, verticalAlign: "middle" }} />
+                          Notes
+                        </Typography>
+                        <Typography variant="body1">
+                          {formData.notes}
+                        </Typography>
+                      </Grid>
+                    )}
+                    
+                    {formData.attachments.length > 0 && (
+                      <Grid item xs={12}>
+                        <Typography variant="subtitle2" color="text.secondary">
+                          <AttachFile fontSize="small" sx={{ mr: 0.5, verticalAlign: "middle" }} />
+                          Attachments
+                        </Typography>
+                        <Typography variant="body2">
+                          {formData.attachments.length} file(s) attached
+                        </Typography>
+                      </Grid>
+                    )}
+                  </Grid>
+                </Paper>
+              </Box>
+            )}
+          </Box>
           
-          {activeStep === steps.length - 1 ? (
+          <Divider sx={{ mt: 2, mb: 2 }} />
+          
+          <Box sx={{ display: "flex", justifyContent: "space-between" }}>
             <Button
-              onClick={handleSubmit}
-              variant="contained"
-              color="primary"
-              disabled={submitting}
-              startIcon={submitting ? <CircularProgress size={24} /> : <Save />}
+              disabled={activeStep === 0 || submitting}
+              onClick={handleBack}
+              startIcon={<ArrowBack />}
             >
-              {submitting ? "Creating..." : "Create Experience"}
+              Back
             </Button>
-          ) : (
-            <Button
-              onClick={handleNext}
-              variant="contained"
-              color="primary"
-              endIcon={<ArrowForward />}
-            >
-              Next
-            </Button>
-          )}
-        </Box>
-        
-      </Paper>
-    </Container>
+            
+            {activeStep === steps.length - 1 ? (
+              <Button
+                onClick={handleSubmit}
+                variant="contained"
+                color="primary"
+                disabled={submitting}
+                startIcon={submitting ? <CircularProgress size={24} /> : <Save />}
+              >
+                {submitting ? "Creating..." : "Create Experience"}
+              </Button>
+            ) : (
+              <Button
+                onClick={handleNext}
+                variant="contained"
+                color="primary"
+                endIcon={<ArrowForward />}
+              >
+                Next
+              </Button>
+            )}
+          </Box>
+        </Paper>
+      </Container>
+    </LocalizationProvider>
   );
 }

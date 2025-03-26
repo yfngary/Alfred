@@ -15,16 +15,18 @@ import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 
 const MAX_TOTAL_GUESTS = 50;
 
-const GuestSelection = ({ formData, updateFormData }) => {
+const GuestSelection = ({ formData, updateFormData, userName }) => {
   const [adults, setAdults] = useState(formData.adults || 4);
   const [kids, setKids] = useState(formData.kids || 4);
-  const [adultNames, setAdultNames] = useState(
-    Array.from({ length: adults }, (_, i) => ({
-      name: `adult-${i + 1}`,
+  const [adultNames, setAdultNames] = useState(() => {
+    // Initialize the first adult as the user
+    const adultArray = Array.from({ length: adults }, (_, i) => ({
+      name: i === 0 ? (userName || "You") : `adult-${i + 1}`,
       contact: "",
       contactType: "",
-    }))
-  );
+    }));
+    return adultArray;
+  });
   const [childNames, setChildNames] = useState(
     Array.from({ length: kids }, (_, i) => ({
       name: `child-${i + 1}`,
@@ -36,14 +38,23 @@ const GuestSelection = ({ formData, updateFormData }) => {
 
   useEffect(() => {
     const guests = adultNames.concat(childNames).map((guest, index) => ({
-      name: guest.name,
+      name: index === 0 && adults > 0 ? userName || "You" : guest.name,
       email: guest.contactType === 'Email' ? guest.contact : '',
       phone: guest.contactType === 'Phone' ? guest.contact : '',
       type: index < adults ? 'adult' : 'child'  // Determine type based on array position
     }));
 
     updateFormData({...formData, adults, kids, guests });
-  }, [adults, kids, adultNames, childNames]);
+  }, [adults, kids, adultNames, childNames, userName]);
+
+  // Update adultNames when userName changes
+  useEffect(() => {
+    if (userName && adultNames.length > 0) {
+      const updatedAdultNames = [...adultNames];
+      updatedAdultNames[0] = { ...updatedAdultNames[0], name: userName };
+      setAdultNames(updatedAdultNames);
+    }
+  }, [userName]);
 
   const handleGuestChange = (type, newValue) => {
     newValue = Math.max(0, parseInt(newValue, 10) || 0);
@@ -58,10 +69,16 @@ const GuestSelection = ({ formData, updateFormData }) => {
 
     if (type === "adults") {
       setAdults(newValue);
+      // Ensure the first adult is always the user
       setAdultNames(
         Array.from(
           { length: newValue },
-          (_, i) => adultNames[i] || { name: "", contact: "", contactType: "" }
+          (_, i) => {
+            if (i === 0) {
+              return adultNames[0] || { name: userName || "You", contact: "", contactType: "" };
+            }
+            return adultNames[i] || { name: "", contact: "", contactType: "" };
+          }
         )
       );
     } else {
@@ -76,6 +93,11 @@ const GuestSelection = ({ formData, updateFormData }) => {
   };
 
   const handleContactChange = (type, index, field, value) => {
+    // Prevent changing the name of the first adult
+    if (type === "adults" && index === 0 && field === "name") {
+      return;
+    }
+    
     const updatedList = type === "adults" ? [...adultNames] : [...childNames];
 
     if (field === "contactType") {
@@ -238,7 +260,7 @@ const GuestSelection = ({ formData, updateFormData }) => {
           }}
         >
           <TextField
-            label={`Adult ${index + 1}`}
+            label={index === 0 ? "You (Primary Guest)" : `Adult ${index + 1}`}
             fullWidth
             variant="outlined"
             size="small"
@@ -251,8 +273,9 @@ const GuestSelection = ({ formData, updateFormData }) => {
             onChange={(e) =>
               handleContactChange("adults", index, "name", e.target.value)
             }
+            disabled={index === 0}
           />
-          {guest.name.trim() && (
+          {(guest.name.trim() || index === 0) && (
             <Box
               sx={{
                 display: "flex",

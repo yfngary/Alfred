@@ -23,6 +23,7 @@ import {
   Check as CheckIcon,
   Schedule as ScheduleIcon,
   Chat as ChatIcon,
+  Logout as LogoutIcon,
 } from "@mui/icons-material";
 
 export default function UserProfilePage() {
@@ -34,10 +35,24 @@ export default function UserProfilePage() {
   const [friendStatus, setFriendStatus] = useState("");
   const [requestSending, setRequestSending] = useState(false);
 
+  // Debug render cycles
+  console.log("UserProfilePage rendering for userId:", userId);
+
   useEffect(() => {
+    console.log("UserProfilePage useEffect triggered for userId:", userId);
+    let isMounted = true;
+    
     const fetchUserProfile = async () => {
       try {
         const token = localStorage.getItem("token");
+        if (!token || !userId) {
+          if (isMounted) {
+            setMessage("Missing authentication token or user ID.");
+            setLoading(false);
+          }
+          return;
+        }
+
         const response = await fetch(
           `http://localhost:5001/api/users/${userId}`,
           {
@@ -50,27 +65,43 @@ export default function UserProfilePage() {
 
         const result = await response.json();
 
-        if (response.ok) {
+        if (response.ok && isMounted) {
           setUser(result.user);
           // Check if there's an existing friend request
           checkFriendStatus(result.user._id);
-        } else {
+        } else if (isMounted) {
           setMessage(result.error || "Failed to load user profile.");
         }
       } catch (error) {
-        setMessage("Error fetching user profile.");
+        console.error("Error fetching user profile:", error);
+        if (isMounted) {
+          setMessage("Error fetching user profile.");
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
-    fetchUserProfile();
-  }, [userId]);
+    if (userId) {
+      fetchUserProfile();
+    } else {
+      setLoading(false);
+      setMessage("No user ID provided.");
+    }
+
+    return () => {
+      console.log("UserProfilePage unmounting");
+      isMounted = false;
+    };
+  }, [userId]); // Only depend on userId
 
   const checkFriendStatus = async (userId) => {
-    // This is a placeholder - you'll need to implement this endpoint on your backend
     try {
       const token = localStorage.getItem("token");
+      if (!token || !userId) return;
+      
       const response = await fetch(
         `http://localhost:5001/api/requests/checkFriendStatus/${userId}`,
         {
@@ -83,11 +114,22 @@ export default function UserProfilePage() {
 
       const result = await response.json();
       if (response.ok) {
-        setFriendStatus(result.status); // e.g., "none", "pending", "friends"
+        setFriendStatus(result.status);
       }
     } catch (error) {
       console.error("Error checking friend status:", error);
     }
+  };
+
+  const handleLogout = () => {
+    console.log("Logging out user");
+    
+    // Clear authentication data
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    
+    // Redirect to login page
+    navigate("/login");
   };
 
   const sendFriendRequest = async (toUserId) => {
@@ -119,7 +161,7 @@ export default function UserProfilePage() {
   };
 
   const handleBackToProfile = () => {
-    navigate('/profilePage');
+    navigate('/profile');
   };
 
   // Helper function to generate avatar colors

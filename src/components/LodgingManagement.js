@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
   Box,
   Container,
@@ -30,12 +30,21 @@ import {
   Hotel as HotelIcon,
   LocationOn as LocationIcon,
   CalendarToday as CalendarIcon,
-  Group as GroupIcon
+  Group as GroupIcon,
+  Event as EventIcon
 } from '@mui/icons-material';
 import { useTrips } from '../context/TripContext';
+import usePlacesAutocomplete, { getGeocode, getLatLng } from "use-places-autocomplete";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 
-export default function LodgingManagement() {
-  const { tripId } = useParams();
+// Use the same API key as other components
+const GOOGLE_MAPS_API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY || "YOUR_GOOGLE_MAPS_API_KEY";
+
+export default function LodgingManagement({ id }) {
+  const params = useParams();
+  const location = useLocation();
+  const tripId = id || params.id;
   const navigate = useNavigate();
   const { refreshTrips } = useTrips();
   const [trip, setTrip] = useState(null);
@@ -46,147 +55,149 @@ export default function LodgingManagement() {
   const [saveLoading, setSaveLoading] = useState(false);
   const [newLodging, setNewLodging] = useState({
     name: '',
-    type: 'hotel',
-    location: '',
+    lodgingType: 'hotel',
+    address: '',
     checkIn: '',
     checkOut: '',
     details: '',
     assignedGuests: []
   });
+  
+  // Google Places Autocomplete Setup
+  const {
+    ready,
+    value,
+    suggestions: { status, data },
+    setValue,
+    clearSuggestions,
+  } = usePlacesAutocomplete({
+    debounce: 300,
+    requestOptions: { types: ["address"] }, // Restrict to addresses
+  });
+  
+  // Reference for handling clicks outside the suggestions box
+  const suggestionsRef = useRef(null);
+
+  // Sync the address field with the Places Autocomplete value
+  useEffect(() => {
+    setValue(newLodging.address);
+  }, [newLodging.address, setValue]);
+
+  // Close suggestions on click outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(event.target)) {
+        clearSuggestions();
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [clearSuggestions]);
+  
+  // Handle selection of a suggested address
+  const handleAddressSelect = async (address) => {
+    setValue(address, false);
+    clearSuggestions();
+    setNewLodging(prev => ({ ...prev, address }));
+    
+    try {
+      const results = await getGeocode({ address });
+      const { lat, lng } = await getLatLng(results[0]);
+      // You can optionally store coordinates with the lodging if needed
+      // setNewLodging(prev => ({ ...prev, coordinates: { lat, lng } }));
+    } catch (error) {
+      console.error("Error fetching location details:", error);
+    }
+  };
 
   // Fetch trip data
   useEffect(() => {
-    const fetchTripDetails = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
-        const token = localStorage.getItem("token");
-        const response = await fetch(
-          `http://localhost:5001/api/trips/${tripId}`,
-          {
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
+        const token = localStorage.getItem('token');
+        
+        const response = await fetch(`http://localhost:5001/api/trips/${tripId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
           }
-        );
-
+        });
+        
         if (!response.ok) {
-          throw new Error('Failed to fetch trip details');
+          throw new Error('Failed to fetch trip data');
         }
-
+        
         const data = await response.json();
-        setTrip(data.trip || data);
-        setLodgings(data.trip?.lodgings || data.lodgings || []);
+        setTrip(data);
+        setLodgings(data.lodgings || []);
+        
+        // Check if there's a lodging to edit from the location state
+        if (location.state?.editLodging) {
+          handleEditLodging(location.state.editLodging);
+        }
+        
       } catch (err) {
         setError(err.message);
       } finally {
         setLoading(false);
       }
     };
-
-    fetchTripDetails();
-  }, [tripId]);
-
-  const handleAddLodging = () => {
-    if (!newLodging.name.trim() || !newLodging.location.trim()) return;
     
-    const lodgingToAdd = {
-      ...newLodging,
-      id: `temp-${Date.now()}`,
-      _id: `temp-${Date.now()}`
-    };
+    fetchData();
+  }, [tripId, location.state]);
+
+  const handleAddLodging = async () => {
+    if (!newLodging.name?.trim() || !newLodging.address?.trim()) return;
     
-    setLodgings(prev => [...prev, lodgingToAdd]);
-    setNewLodging({
-      name: '',
-      type: 'hotel',
-      location: '',
-      checkIn: '',
-      checkOut: '',
-      details: '',
-      assignedGuests: []
-    });
-  };
-
-  const handleRemoveLodging = (lodgingId) => {
-    setLodgings(prev => prev.filter(l => l._id !== lodgingId));
-  };
-
-  const handleEditLodging = (lodging) => {
-    setEditingLodging(lodging);
-    setNewLodging({
-      name: lodging.name,
-      type: lodging.type || 'hotel',
-      location: lodging.location,
-      checkIn: lodging.checkIn ? formatDateForInput(new Date(lodging.checkIn)) : '',
-      checkOut: lodging.checkOut ? formatDateForInput(new Date(lodging.checkOut)) : '',
-      details: lodging.details || '',
-      assignedGuests: lodging.assignedGuests || []
-    });
-  };
-
-  const formatDateForInput = (date) => {
-    if (!date) return '';
-    const d = new Date(date);
-    let month = '' + (d.getMonth() + 1);
-    let day = '' + d.getDate();
-    const year = d.getFullYear();
-
-    if (month.length < 2) month = '0' + month;
-    if (day.length < 2) day = '0' + day;
-
-    return [year, month, day].join('-');
-  };
-
-  const handleUpdateLodging = () => {
-    if (!editingLodging || !newLodging.name.trim()) return;
-    
-    setLodgings(prev => prev.map(l => 
-      l._id === editingLodging._id ? { ...l, ...newLodging } : l
-    ));
-    
-    setEditingLodging(null);
-    setNewLodging({
-      name: '',
-      type: 'hotel',
-      location: '',
-      checkIn: '',
-      checkOut: '',
-      details: '',
-      assignedGuests: []
-    });
-  };
-
-  const handleSaveChanges = async () => {
     try {
       setSaveLoading(true);
       const token = localStorage.getItem('token');
       
-      // Clean up the data for API
-      const cleanedLodgings = lodgings.map(({ id, ...lodging }) => ({
-        ...lodging,
-        checkIn: lodging.checkIn ? new Date(lodging.checkIn).toISOString() : null,
-        checkOut: lodging.checkOut ? new Date(lodging.checkOut).toISOString() : null
-      }));
-
-      const response = await fetch(`http://localhost:5001/api/trips/${tripId}`, {
-        method: 'PUT',
+      const response = await fetch(`http://localhost:5001/api/trips/${tripId}/lodgings`, {
+        method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          ...trip,
-          lodgings: cleanedLodgings
+          name: newLodging.name,
+          address: newLodging.address,
+          checkIn: newLodging.checkIn ? (newLodging.checkIn instanceof Date ? newLodging.checkIn : new Date(newLodging.checkIn)).toISOString() : null,
+          checkOut: newLodging.checkOut ? (newLodging.checkOut instanceof Date ? newLodging.checkOut : new Date(newLodging.checkOut)).toISOString() : null,
+          details: newLodging.details,
+          lodgingType: newLodging.lodgingType,
+          assignedGuests: newLodging.assignedGuests
         })
       });
 
       if (!response.ok) {
-        throw new Error('Failed to update lodgings');
+        throw new Error('Failed to add lodging');
       }
 
+      const data = await response.json();
+      
+      // Add the newly created lodging to our local state
+      setLodgings(prev => [...prev, data.lodging]);
+      
+      // Reset the form
+      setNewLodging({
+        name: '',
+        lodgingType: 'hotel',
+        address: '',
+        checkIn: '',
+        checkOut: '',
+        details: '',
+        assignedGuests: []
+      });
+      
+      // Clear Google Places Autocomplete state
+      setValue('', false);
+      clearSuggestions();
+      
+      // Refresh trip data
       refreshTrips();
-      navigate(`/trips/${tripId}`);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -194,18 +205,134 @@ export default function LodgingManagement() {
     }
   };
 
+  const handleRemoveLodging = async (lodgingId) => {
+    try {
+      setSaveLoading(true);
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(`http://localhost:5001/api/trips/${tripId}/lodgings/${lodgingId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete lodging');
+      }
+      
+      // Remove the lodging from our local state
+      setLodgings(prev => prev.filter(l => l._id !== lodgingId));
+      
+      // Refresh trip data
+      refreshTrips();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaveLoading(false);
+    }
+  };
+
+  const handleEditLodging = (lodging) => {
+    setEditingLodging(lodging);
+    setNewLodging({
+      name: lodging.name || '',
+      lodgingType: lodging.lodgingType || 'hotel',
+      address: lodging.address || '',
+      checkIn: lodging.checkIn ? new Date(lodging.checkIn) : '',
+      checkOut: lodging.checkOut ? new Date(lodging.checkOut) : '',
+      details: lodging.details || '',
+      assignedGuests: lodging.assignedGuests || []
+    });
+  };
+
+  const handleUpdateLodging = async () => {
+    if (!editingLodging || !newLodging.name?.trim()) return;
+    
+    try {
+      setSaveLoading(true);
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(`http://localhost:5001/api/trips/${tripId}/lodgings/${editingLodging._id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: newLodging.name,
+          address: newLodging.address,
+          checkIn: newLodging.checkIn ? (newLodging.checkIn instanceof Date ? newLodging.checkIn : new Date(newLodging.checkIn)).toISOString() : null,
+          checkOut: newLodging.checkOut ? (newLodging.checkOut instanceof Date ? newLodging.checkOut : new Date(newLodging.checkOut)).toISOString() : null,
+          details: newLodging.details,
+          lodgingType: newLodging.lodgingType,
+          assignedGuests: newLodging.assignedGuests
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update lodging');
+      }
+      
+      const data = await response.json();
+      
+      // Update the lodging in our local state
+      setLodgings(prev => prev.map(l => 
+        l._id === editingLodging._id ? data.lodging : l
+      ));
+      
+      setEditingLodging(null);
+      setNewLodging({
+        name: '',
+        lodgingType: 'hotel',
+        address: '',
+        checkIn: '',
+        checkOut: '',
+        details: '',
+        assignedGuests: []
+      });
+      
+      // Clear Google Places Autocomplete state
+      setValue('', false);
+      clearSuggestions();
+      
+      // Refresh trip data
+      refreshTrips();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaveLoading(false);
+    }
+  };
+
+  const handleSaveChanges = () => {
+    navigate(`/trips/${tripId}`);
+  };
+
+  // Format date for display
   const formatDate = (date) => {
     if (!date) return '';
-    return new Date(date).toLocaleDateString('en-US', {
+    
+    // Ensure we're working with a Date object
+    const dateObj = new Date(date);
+    if (isNaN(dateObj.getTime())) return ''; // Invalid date
+    
+    return dateObj.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric'
     });
   };
-
+  
   const isValidDateRange = () => {
     if (!newLodging.checkIn || !newLodging.checkOut) return true;
-    return new Date(newLodging.checkOut) > new Date(newLodging.checkIn);
+    
+    // Ensure we're comparing Date objects
+    const checkInDate = newLodging.checkIn instanceof Date ? newLodging.checkIn : new Date(newLodging.checkIn);
+    const checkOutDate = newLodging.checkOut instanceof Date ? newLodging.checkOut : new Date(newLodging.checkOut);
+    
+    return checkOutDate > checkInDate;
   };
 
   if (loading) {
@@ -245,43 +372,123 @@ export default function LodgingManagement() {
                 label="Name"
                 value={newLodging.name}
                 onChange={(e) => setNewLodging(prev => ({ ...prev, name: e.target.value }))}
+                required
+                error={!!newLodging.name?.trim() === false}
+                helperText={!!newLodging.name?.trim() === false ? "Name is required" : ""}
               />
               <FormControl fullWidth>
                 <InputLabel>Type</InputLabel>
                 <Select
-                  value={newLodging.type}
+                  value={newLodging.lodgingType}
                   label="Type"
-                  onChange={(e) => setNewLodging(prev => ({ ...prev, type: e.target.value }))}
+                  onChange={(e) => setNewLodging(prev => ({ ...prev, lodgingType: e.target.value }))}
                 >
                   <MenuItem value="hotel">Hotel</MenuItem>
                   <MenuItem value="airbnb">Airbnb</MenuItem>
                   <MenuItem value="resort">Resort</MenuItem>
-                  <MenuItem value="hostel">Hostel</MenuItem>
                   <MenuItem value="other">Other</MenuItem>
                 </Select>
               </FormControl>
-              <TextField
-                fullWidth
-                label="Location"
-                value={newLodging.location}
-                onChange={(e) => setNewLodging(prev => ({ ...prev, location: e.target.value }))}
-              />
-              <TextField
-                fullWidth
-                label="Check-in Date"
-                type="date"
-                value={newLodging.checkIn}
-                onChange={(e) => setNewLodging(prev => ({ ...prev, checkIn: e.target.value }))}
-                InputLabelProps={{ shrink: true }}
-              />
-              <TextField
-                fullWidth
-                label="Check-out Date"
-                type="date"
-                value={newLodging.checkOut}
-                onChange={(e) => setNewLodging(prev => ({ ...prev, checkOut: e.target.value }))}
-                InputLabelProps={{ shrink: true }}
-              />
+              <Box sx={{ position: 'relative', marginBottom: 2 }}>
+                <TextField
+                  fullWidth
+                  label="Address"
+                  value={newLodging.address}
+                  onChange={(e) => {
+                    setNewLodging(prev => ({ ...prev, address: e.target.value }));
+                    setValue(e.target.value);
+                  }}
+                  disabled={!ready}
+                  placeholder="Start typing to search for an address"
+                />
+                {status === "OK" && (
+                  <Box
+                    ref={suggestionsRef}
+                    sx={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      right: 0,
+                      mt: 1,
+                      zIndex: 1000, 
+                      border: '1px solid #ccc',
+                      borderRadius: '4px',
+                      backgroundColor: '#4A148C', // Much darker purple color from the app's color scheme
+                      maxHeight: '200px',
+                      overflowY: 'auto',
+                      boxShadow: 3,
+                    }}
+                  >
+                    {data.length > 0 ? (
+                      data.map(({ place_id, description }) => (
+                        <Box
+                          key={place_id}
+                          sx={{
+                            p: 1.5,
+                            cursor: 'pointer',
+                            borderBottom: '1px solid rgb(0, 0, 0)',
+                            backgroundColor: '#4A148C', // Light purple background that matches the app's theme
+                            '&:hover': {
+                              bgcolor: '#7B1FA2', // Light gray hover state
+                            },
+                            '&:last-child': {
+                              borderBottom: 'none'
+                            }
+                          }}
+                          onClick={() => handleAddressSelect(description)}
+                        >
+                          <Typography variant="body2">{description}</Typography>
+                        </Box>
+                      ))
+                    ) : (
+                      <Box sx={{ p: 2, textAlign: 'center', backgroundColor: '#ffffff' }}>
+                        <Typography variant="body2" color="text.secondary">
+                          No results found
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
+                )}
+              </Box>
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="subtitle2" color="primary" gutterBottom>
+                  Check-in Date
+                </Typography>
+                <DatePicker
+                  selected={newLodging.checkIn ? new Date(newLodging.checkIn) : null}
+                  onChange={(date) => setNewLodging(prev => ({ ...prev, checkIn: date }))}
+                  customInput={
+                    <TextField 
+                      fullWidth 
+                      variant="outlined"
+                      placeholder="Select check-in date"
+                      InputProps={{
+                        startAdornment: <EventIcon color="action" sx={{ mr: 1 }} />,
+                      }}
+                    />
+                  }
+                />
+              </Box>
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="subtitle2" color="primary" gutterBottom>
+                  Check-out Date
+                </Typography>
+                <DatePicker
+                  selected={newLodging.checkOut ? new Date(newLodging.checkOut) : null}
+                  onChange={(date) => setNewLodging(prev => ({ ...prev, checkOut: date }))}
+                  customInput={
+                    <TextField 
+                      fullWidth 
+                      variant="outlined"
+                      placeholder="Select check-out date"
+                      InputProps={{
+                        startAdornment: <EventIcon color="action" sx={{ mr: 1 }} />,
+                      }}
+                    />
+                  }
+                  minDate={newLodging.checkIn ? new Date(newLodging.checkIn) : new Date()}
+                />
+              </Box>
               <TextField
                 fullWidth
                 label="Details"
@@ -309,11 +516,22 @@ export default function LodgingManagement() {
                   )}
                 >
                   {trip?.guests?.map((guest) => (
-                    <MenuItem key={guest._id} value={guest._id}>
+                    <MenuItem key={guest._id || guest.id} value={guest.name}>
                       {guest.name}
                     </MenuItem>
                   ))}
                 </Select>
+                <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                  <Button
+                    size="small"
+                    onClick={() => {
+                      const allGuestNames = trip?.guests?.map(guest => guest.name) || [];
+                      setNewLodging(prev => ({ ...prev, assignedGuests: allGuestNames }));
+                    }}
+                  >
+                    Select All Guests
+                  </Button>
+                </Box>
               </FormControl>
               {newLodging.checkIn && newLodging.checkOut && !isValidDateRange() && (
                 <Alert severity="error" sx={{ mt: 1 }}>
@@ -324,7 +542,7 @@ export default function LodgingManagement() {
                 variant="contained"
                 onClick={editingLodging ? handleUpdateLodging : handleAddLodging}
                 startIcon={editingLodging ? <EditIcon /> : <AddIcon />}
-                disabled={!newLodging.name.trim() || !newLodging.location.trim() || !isValidDateRange()}
+                disabled={!newLodging.name?.trim() || !newLodging.address?.trim() || !isValidDateRange()}
               >
                 {editingLodging ? 'Update Lodging' : 'Add Lodging'}
               </Button>
@@ -335,13 +553,16 @@ export default function LodgingManagement() {
                     setEditingLodging(null);
                     setNewLodging({
                       name: '',
-                      type: 'hotel',
-                      location: '',
+                      lodgingType: 'hotel',
+                      address: '',
                       checkIn: '',
                       checkOut: '',
                       details: '',
                       assignedGuests: []
                     });
+                    // Clear Google Places Autocomplete state
+                    setValue('', false);
+                    clearSuggestions();
                   }}
                 >
                   Cancel Edit
@@ -365,7 +586,7 @@ export default function LodgingManagement() {
                         <Typography variant="h6">
                           {lodging.name}
                           <Chip
-                            label={lodging.type}
+                            label={lodging.lodgingType || 'hotel'}
                             size="small"
                             sx={{ ml: 1 }}
                             color="primary"
@@ -373,7 +594,7 @@ export default function LodgingManagement() {
                         </Typography>
                         <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
                           <LocationIcon sx={{ mr: 0.5, fontSize: 'small' }} />
-                          {lodging.location}
+                          {lodging.address}
                         </Typography>
                         <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
                           <CalendarIcon sx={{ mr: 0.5, fontSize: 'small' }} />
@@ -391,17 +612,14 @@ export default function LodgingManagement() {
                               Assigned Guests:
                             </Typography>
                             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
-                              {lodging.assignedGuests.map((guestId) => {
-                                const guest = trip?.guests?.find(g => g._id === guestId);
-                                return (
-                                  <Chip
-                                    key={guestId}
-                                    label={guest?.name || guestId}
-                                    size="small"
-                                    variant="outlined"
-                                  />
-                                );
-                              })}
+                              {lodging.assignedGuests.map((guestName) => (
+                                <Chip
+                                  key={guestName}
+                                  label={guestName}
+                                  size="small"
+                                  variant="outlined"
+                                />
+                              ))}
                             </Box>
                           </Box>
                         )}

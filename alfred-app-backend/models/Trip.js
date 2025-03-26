@@ -59,9 +59,17 @@ const GuestRelationshipSchema = new mongoose.Schema({
 });
 
 const LodgingSchema = new mongoose.Schema({
+  name: { type: String, required: true },
   address: String,
   checkIn: Date,
   checkOut: Date,
+  details: { type: String },
+  lodgingType: { 
+    type: String, 
+    enum: ["hotel", "airbnb", "resort", "other"],
+    default: "other"
+  },
+  assignedGuests: [{ type: String }] // Store guest names as strings (consistent with experiences)
 });
 
 const TripSchema = new mongoose.Schema({

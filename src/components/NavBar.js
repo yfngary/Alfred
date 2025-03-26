@@ -7,7 +7,9 @@ import {
   Add as AddIcon,
   Tag as TagIcon,
   ChevronLeft,
-  Menu as MenuIcon
+  Menu as MenuIcon,
+  Luggage as LuggageIcon,
+  Forum as ForumIcon
 } from '@mui/icons-material';
 import { 
   IconButton, 
@@ -26,7 +28,17 @@ import axios from "../utils/axiosConfig";
 
 // Define widths for collapsed and expanded states
 const collapsedWidth = "60px";
-const expandedWidth = "200px";
+const expandedWidth = "230px";
+
+// Colors for dark theme
+const darkTheme = {
+  primary: "#1A1A1A", // Almost black background
+  secondary: "#2D2D2D", // Slightly lighter for hover states
+  highlight: "#3366FF", // Blue highlight color
+  text: "#FFFFFF", // White text
+  divider: "rgba(255, 255, 255, 0.1)", // Subtle divider
+  selectedItem: "rgba(51, 102, 255, 0.2)", // Blue tint for selected items
+};
 
 // Function to generate nav style based on state
 const navStyle = (isOpen) => ({
@@ -35,13 +47,13 @@ const navStyle = (isOpen) => ({
   top: 0,
   height: "100vh",
   width: isOpen ? expandedWidth : collapsedWidth,
-  backgroundColor: "#3B82F6",
-  color: "white",
+  backgroundColor: darkTheme.primary,
+  color: darkTheme.text,
   display: "flex",
   flexDirection: "column",
   transition: "width 0.3s ease",
   overflow: "hidden",
-  boxShadow: "0 0 10px rgba(0, 0, 0, 0.1)",
+  boxShadow: "0 0 10px rgba(0, 0, 0, 0.3)",
   zIndex: 1000,
 });
 
@@ -60,20 +72,58 @@ const headerStyle = {
   padding: "0 12px",
 };
 
-const channelStyle = {
+// Base style for clickable items
+const navItemStyle = {
   display: 'flex',
   alignItems: 'center',
   padding: '8px 12px',
   cursor: 'pointer',
   borderRadius: '4px',
+  margin: '2px 8px',
   '&:hover': {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: darkTheme.secondary,
+  },
+};
+
+// Style for trips items
+const tripStyle = {
+  ...navItemStyle,
+  backgroundColor: 'rgba(255, 153, 0, 0.1)', // Subtle orange tint for trips
+  '&:hover': {
+    backgroundColor: 'rgba(255, 153, 0, 0.2)',
+  },
+};
+
+const selectedTripStyle = {
+  ...tripStyle,
+  backgroundColor: 'rgba(255, 153, 0, 0.3)', // More pronounced for selected
+};
+
+// Style for channel items
+const channelStyle = {
+  ...navItemStyle,
+  backgroundColor: 'rgba(51, 102, 255, 0.1)', // Subtle blue tint for channels
+  '&:hover': {
+    backgroundColor: 'rgba(51, 102, 255, 0.2)',
   },
 };
 
 const selectedChannelStyle = {
   ...channelStyle,
-  backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  backgroundColor: 'rgba(51, 102, 255, 0.3)', // More pronounced for selected
+};
+
+// Section header style
+const sectionHeaderStyle = {
+  display: 'flex',
+  alignItems: 'center',
+  cursor: 'pointer',
+  padding: '10px 12px',
+  marginBottom: '4px',
+  borderRadius: '4px',
+  '&:hover': {
+    backgroundColor: darkTheme.secondary,
+  },
 };
 
 export default function NavBar({ isOpen, setIsOpen }) {
@@ -95,9 +145,7 @@ export default function NavBar({ isOpen, setIsOpen }) {
 
     const fetchTrips = async () => {
       try {
-        console.log('Fetching trips with token:', token);
-        const response = await axios.get('/api/trips/userTrips');  // Changed from /api/trips to /api/trips/userTrips
-        console.log('Trips response:', response.data);
+        const response = await axios.get('/api/trips/userTrips');
         
         if (response.data && Array.isArray(response.data)) {
           setTrips(response.data);
@@ -145,7 +193,7 @@ export default function NavBar({ isOpen, setIsOpen }) {
         <IconButton
           onClick={() => setIsOpen((prev) => !prev)}
           sx={{
-            color: 'white',
+            color: darkTheme.text,
             backgroundColor: 'rgba(255, 255, 255, 0.1)',
             borderRadius: '8px',
             padding: '4px',
@@ -165,44 +213,41 @@ export default function NavBar({ isOpen, setIsOpen }) {
 
       {isOpen && (
         <>
-          <Link to="/" style={{ ...headerStyle, textDecoration: 'none', color: 'white', display: 'block' }}>
-            Trip Planner
+          <Link to="/" style={{ ...headerStyle, textDecoration: 'none', color: darkTheme.text, display: 'block' }}>
+            <Typography variant="h5" component="div" sx={{ fontWeight: 'bold', letterSpacing: '0.5px' }}>
+              Trip Planner
+            </Typography>
           </Link>
 
           {/* Navigation Links */}
-          <Link to="/createTrip" style={{ color: 'white', textDecoration: 'none', marginBottom: '8px' }}>
-            <Box sx={channelStyle}>
+          <Link to="/create-trip" style={{ color: darkTheme.text, textDecoration: 'none', marginBottom: '8px' }}>
+            <Box sx={navItemStyle}>
               <AddIcon sx={{ marginRight: 1 }} />
               Create Trip
             </Box>
           </Link>
           
-          <Link to="/notifications" style={{ color: 'white', textDecoration: 'none', marginBottom: '8px' }}>
-            <Box sx={channelStyle}>
+          <Link to="/notifications" style={{ color: darkTheme.text, textDecoration: 'none', marginBottom: '8px' }}>
+            <Box sx={navItemStyle}>
               <ChatIcon sx={{ marginRight: 1 }} />
               Notifications
             </Box>
           </Link>
 
-          <Divider sx={{ my: 2, backgroundColor: 'rgba(255, 255, 255, 0.2)' }} />
+          <Divider sx={{ my: 2, backgroundColor: darkTheme.divider }} />
 
           {/* Trips Section */}
           <Box sx={{ mb: 2 }}>
             <Box
               onClick={toggleTrips}
               sx={{
-                display: 'flex',
-                alignItems: 'center',
-                cursor: 'pointer',
-                padding: '8px 12px',
-                marginBottom: '8px',
-                '&:hover': {
-                  color: 'rgba(255, 255, 255, 0.8)',
-                },
+                ...sectionHeaderStyle,
+                backgroundColor: 'rgba(255, 153, 0, 0.15)', // Orange tint for trips section
               }}
             >
               {tripsOpen ? <ExpandLess /> : <ExpandMore />}
-              <Typography variant="subtitle1" sx={{ marginLeft: 1 }}>
+              <LuggageIcon sx={{ mx: 1 }} />
+              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                 Your Trips
               </Typography>
             </Box>
@@ -212,8 +257,7 @@ export default function NavBar({ isOpen, setIsOpen }) {
                   <ListItem
                     key={trip._id}
                     sx={{
-                      ...channelStyle,
-                      backgroundColor: selectedTrip === trip._id ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
+                      ...(selectedTrip === trip._id ? selectedTripStyle : tripStyle),
                     }}
                     onClick={() => handleTripChange(trip._id)}
                   >
@@ -235,25 +279,20 @@ export default function NavBar({ isOpen, setIsOpen }) {
             </Collapse>
           </Box>
 
-          <Divider sx={{ my: 2, backgroundColor: 'rgba(255, 255, 255, 0.2)' }} />
+          <Divider sx={{ my: 2, backgroundColor: darkTheme.divider }} />
 
           {/* Channels Section */}
           <Box sx={{ flex: 1, overflow: 'auto' }}>
             <Box
               onClick={toggleChannels}
               sx={{
-                display: 'flex',
-                alignItems: 'center',
-                cursor: 'pointer',
-                padding: '8px 12px',
-                marginBottom: '8px',
-                '&:hover': {
-                  color: 'rgba(255, 255, 255, 0.8)',
-                },
+                ...sectionHeaderStyle,
+                backgroundColor: 'rgba(51, 102, 255, 0.15)', // Blue tint for channels section
               }}
             >
               {channelsOpen ? <ExpandLess /> : <ExpandMore />}
-              <Typography variant="subtitle1" sx={{ marginLeft: 1 }}>
+              <ForumIcon sx={{ mx: 1 }} />
+              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                 Channels
               </Typography>
             </Box>
@@ -315,12 +354,12 @@ export default function NavBar({ isOpen, setIsOpen }) {
           </Box>
 
           <Box sx={{ marginTop: 'auto', padding: '12px' }}>
-            <Link to="/profilePage" style={{ color: 'white', textDecoration: 'none' }}>
+            <Link to="/profile" style={{ color: darkTheme.text, textDecoration: 'none' }}>
               <Box sx={{
-                ...channelStyle,
-                backgroundColor: '#2563EB',
+                ...navItemStyle,
+                backgroundColor: darkTheme.highlight,
                 '&:hover': {
-                  backgroundColor: '#1D4ED8',
+                  backgroundColor: '#2855E6', // Slightly darker blue on hover
                 },
               }}>
                 Profile

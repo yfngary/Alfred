@@ -311,7 +311,7 @@ router.delete("/:tripId", authMiddleware, async (req, res) => {
   }
 });
 
-router.put("/trips/:tripId", authMiddleware, async (req, res) => {
+router.put("/:tripId", authMiddleware, async (req, res) => {
   try {
     const { tripId } = req.params;
     const updatedTrip = await Trip.findByIdAndUpdate(tripId, req.body, {
@@ -483,6 +483,152 @@ router.put(
   }
 );
 
+// Add a new lodging to a trip
+router.post("/:tripId/lodgings", authMiddleware, async (req, res) => {
+  try {
+    const { tripId } = req.params;
+    const { name, address, checkIn, checkOut, details, lodgingType, assignedGuests } = req.body;
+    
+    console.log("🏨 Adding new lodging:", { tripId, name, address, lodgingType });
+    
+    // Find the trip
+    const trip = await Trip.findById(tripId);
+    if (!trip) {
+      return res.status(404).json({ error: "Trip not found" });
+    }
+    
+    // Check authorization - must be trip owner or collaborator with edit rights
+    const isOwner = trip.userId.toString() === req.user.id;
+    const isEditor = trip.collaborators.some(c => 
+      c.user.toString() === req.user.id && 
+      (c.role === "admin" || c.role === "editor")
+    );
+    
+    if (!isOwner && !isEditor) {
+      return res.status(403).json({ error: "Unauthorized to add lodgings to this trip" });
+    }
+    
+    // Create new lodging object
+    const newLodging = {
+      name,
+      address,
+      checkIn: checkIn ? new Date(checkIn) : null,
+      checkOut: checkOut ? new Date(checkOut) : null,
+      details,
+      lodgingType: lodgingType || "other",
+      assignedGuests: assignedGuests || []
+    };
+    
+    // Add lodging to the trip
+    trip.lodgings.push(newLodging);
+    await trip.save();
+    
+    // Return the newly added lodging
+    const addedLodging = trip.lodgings[trip.lodgings.length - 1];
+    
+    return res.status(201).json({
+      message: "Lodging added successfully",
+      lodgingId: addedLodging._id,
+      lodging: addedLodging
+    });
+  } catch (error) {
+    console.error("❌ Error adding lodging:", error);
+    res.status(500).json({ error: error.message || "Server error" });
+  }
+});
+
+// Update a lodging
+router.put("/:tripId/lodgings/:lodgingId", authMiddleware, async (req, res) => {
+  try {
+    const { tripId, lodgingId } = req.params;
+    const updatedLodgingData = req.body;
+    
+    console.log("🏨 Updating lodging:", { tripId, lodgingId });
+    
+    // Find the trip
+    const trip = await Trip.findById(tripId);
+    if (!trip) {
+      return res.status(404).json({ error: "Trip not found" });
+    }
+    
+    // Check authorization
+    const isOwner = trip.userId.toString() === req.user.id;
+    const isEditor = trip.collaborators.some(c => 
+      c.user.toString() === req.user.id && 
+      (c.role === "admin" || c.role === "editor")
+    );
+    
+    if (!isOwner && !isEditor) {
+      return res.status(403).json({ error: "Unauthorized to update lodgings for this trip" });
+    }
+    
+    // Find the lodging
+    const lodging = trip.lodgings.id(lodgingId);
+    if (!lodging) {
+      return res.status(404).json({ error: "Lodging not found" });
+    }
+    
+    // Handle date conversions if present
+    if (updatedLodgingData.checkIn) {
+      updatedLodgingData.checkIn = new Date(updatedLodgingData.checkIn);
+    }
+    if (updatedLodgingData.checkOut) {
+      updatedLodgingData.checkOut = new Date(updatedLodgingData.checkOut);
+    }
+    
+    // Update lodging fields
+    Object.assign(lodging, updatedLodgingData);
+    
+    await trip.save();
+    return res.status(200).json({
+      message: "Lodging updated successfully",
+      lodging
+    });
+  } catch (error) {
+    console.error("❌ Error updating lodging:", error);
+    res.status(500).json({ error: error.message || "Server error" });
+  }
+});
+
+// Delete a lodging
+router.delete("/:tripId/lodgings/:lodgingId", authMiddleware, async (req, res) => {
+  try {
+    const { tripId, lodgingId } = req.params;
+    
+    console.log("🏨 Deleting lodging:", { tripId, lodgingId });
+    
+    // Find the trip
+    const trip = await Trip.findById(tripId);
+    if (!trip) {
+      return res.status(404).json({ error: "Trip not found" });
+    }
+    
+    // Check authorization
+    const isOwner = trip.userId.toString() === req.user.id;
+    const isEditor = trip.collaborators.some(c => 
+      c.user.toString() === req.user.id && 
+      (c.role === "admin" || c.role === "editor")
+    );
+    
+    if (!isOwner && !isEditor) {
+      return res.status(403).json({ error: "Unauthorized to delete lodgings from this trip" });
+    }
+    
+    // Remove the lodging
+    trip.lodgings = trip.lodgings.filter(
+      (lodge) => lodge._id.toString() !== lodgingId
+    );
+    
+    await trip.save();
+    return res.status(200).json({
+      message: "Lodging deleted successfully"
+    });
+  } catch (error) {
+    console.error("❌ Error deleting lodging:", error);
+    res.status(500).json({ error: error.message || "Server error" });
+  }
+});
+
 // POST route to create a new experience with file uploads
 router.post("/:tripId/experiences", authMiddleware, upload.array('attachments', 10), async (req, res) => {
   try {
@@ -579,7 +725,7 @@ router.post("/:tripId/experiences", authMiddleware, upload.array('attachments', 
   }
 });
 
-router.get("/trips/:tripId", authMiddleware, async (req, res) => {
+router.get("/:tripId", authMiddleware, async (req, res) => {
   try {
     const trip = await Trip.findById(req.params.tripId).populate('chat');
     if (!trip) {
@@ -827,7 +973,24 @@ router.post("/join/:inviteCode", authMiddleware, async (req, res) => {
     }
 
     await trip.save();
-    res.json({ message: "Successfully joined trip", trip });
+    
+    // Get user data to return with response
+    const user = await User.findById(userId).select('name email profilePicture');
+    
+    // Create a sanitized version of the user object
+    const userForResponse = {
+      id: user._id,
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      profilePicture: user.profilePicture
+    };
+    
+    res.json({ 
+      message: "Successfully joined trip", 
+      trip,
+      user: userForResponse 
+    });
   } catch (error) {
     res.status(500).json({ error: "Server error" });
   }

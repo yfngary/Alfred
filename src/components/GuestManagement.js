@@ -50,8 +50,9 @@ const stringToColor = (string) => {
   return color;
 };
 
-export default function GuestManagement() {
-  const { tripId } = useParams();
+export default function GuestManagement({ id }) {
+  const params = useParams();
+  const tripId = id || params.id;
   const navigate = useNavigate();
   const { refreshTrips } = useTrips();
   const [trip, setTrip] = useState(null);
@@ -73,6 +74,8 @@ export default function GuestManagement() {
   });
   const [editingGuest, setEditingGuest] = useState(null);
   const [saveLoading, setSaveLoading] = useState(false);
+  const [selectedGroupId, setSelectedGroupId] = useState('');
+  const [selectedGuestId, setSelectedGuestId] = useState('');
 
   // Fetch trip data
   useEffect(() => {
@@ -111,10 +114,13 @@ export default function GuestManagement() {
   const handleAddGuest = () => {
     if (!newGuest.name.trim()) return;
     
+    // Create a UUID for frontend use only
+    const uniqueId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    
     const guestToAdd = {
       ...newGuest,
-      id: `temp-${Date.now()}`,
-      _id: `temp-${Date.now()}`
+      id: uniqueId,  // For frontend reference
+      _id: uniqueId  // Will be removed before sending to server
     };
     
     setGuests(prev => [...prev, guestToAdd]);
@@ -165,10 +171,13 @@ export default function GuestManagement() {
   const handleAddGroup = () => {
     if (!newGroup.name.trim()) return;
     
+    // Create a UUID for frontend use only
+    const uniqueId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    
     setGroups(prev => [...prev, {
       ...newGroup,
-      id: `group-${Date.now()}`,
-      _id: `group-${Date.now()}`
+      id: uniqueId,
+      _id: uniqueId
     }]);
     
     setNewGroup({
@@ -178,14 +187,144 @@ export default function GuestManagement() {
     });
   };
 
+  const handleAddGuestToGroup = (level) => {
+    if (!selectedGroupId || !selectedGuestId) return;
+    
+    // Find the selected guest object
+    const guestToAdd = guests.find(g => g._id === selectedGuestId);
+    if (!guestToAdd) return;
+    
+    // Update the groups array
+    setGroups(prev => prev.map(group => {
+      if (group._id === selectedGroupId) {
+        // Check if guest already exists in either level
+        const existsInLevel1 = group.level1.some(g => 
+          (typeof g === 'string' && g === selectedGuestId) || 
+          (g._id === selectedGuestId)
+        );
+        const existsInLevel2 = group.level2.some(g => 
+          (typeof g === 'string' && g === selectedGuestId) || 
+          (g._id === selectedGuestId)
+        );
+        
+        // If guest exists in the opposite level, remove them first
+        let updatedLevel1 = group.level1;
+        let updatedLevel2 = group.level2;
+        
+        if (level === 'level1' && existsInLevel2) {
+          updatedLevel2 = group.level2.filter(g => 
+            (typeof g === 'string' && g !== selectedGuestId) || 
+            (g._id !== selectedGuestId)
+          );
+        } else if (level === 'level2' && existsInLevel1) {
+          updatedLevel1 = group.level1.filter(g => 
+            (typeof g === 'string' && g !== selectedGuestId) || 
+            (g._id !== selectedGuestId)
+          );
+        }
+        
+        // Add to the appropriate level if not already there
+        if (level === 'level1' && !existsInLevel1) {
+          return {
+            ...group,
+            level1: [...updatedLevel1, guestToAdd],
+            level2: updatedLevel2
+          };
+        } else if (level === 'level2' && !existsInLevel2) {
+          return {
+            ...group,
+            level1: updatedLevel1,
+            level2: [...updatedLevel2, guestToAdd]
+          };
+        }
+      }
+      return group;
+    }));
+    
+    // Reset the guest selection after adding
+    setSelectedGuestId('');
+  };
+  
+  // Method to remove a guest from a group
+  const handleRemoveGuestFromGroup = (groupId, level, guestId) => {
+    setGroups(prev => prev.map(group => {
+      if (group._id === groupId) {
+        if (level === 'level1') {
+          return {
+            ...group,
+            level1: group.level1.filter(g => 
+              (typeof g === 'string' && g !== guestId) || 
+              (g._id !== guestId)
+            )
+          };
+        } else if (level === 'level2') {
+          return {
+            ...group,
+            level2: group.level2.filter(g => 
+              (typeof g === 'string' && g !== guestId) || 
+              (g._id !== guestId)
+            )
+          };
+        }
+      }
+      return group;
+    }));
+  };
+
   const handleSaveChanges = async () => {
     try {
       setSaveLoading(true);
       const token = localStorage.getItem('token');
       
-      // Clean up the data for API
-      const cleanedGuests = guests.map(({ id, ...guest }) => guest);
-      const cleanedGroups = groups.map(({ id, ...group }) => group);
+      // Clean up the data for API by removing temporary IDs
+      const cleanedGuests = guests.map(guest => {
+        // If it doesn't have a MongoDB ObjectId format (24 hex chars), remove it
+        if (guest._id && (typeof guest._id === 'string' && !/^[0-9a-fA-F]{24}$/.test(guest._id))) {
+          const { _id, id, ...restOfGuest } = guest;
+          return restOfGuest;
+        }
+        // Otherwise keep the existing _id (which should be a valid MongoDB ObjectId)
+        const { id, ...restOfGuest } = guest;
+        return restOfGuest;
+      });
+
+      // Process groups - preserve guest references by ID
+      const cleanedGroups = groups.map(group => {
+        // Remove ID from group if it's not a valid MongoDB ObjectId
+        const { id, ...restOfGroup } = group;
+        const cleanGroup = (group._id && (typeof group._id === 'string' && !/^[0-9a-fA-F]{24}$/.test(group._id)))
+          ? { ...restOfGroup, _id: undefined } 
+          : restOfGroup;
+
+        // Convert guest references from objects to references or strings as needed
+        const processGuests = (guestList) => {
+          if (!guestList || !Array.isArray(guestList)) return [];
+          
+          return guestList.map(guest => {
+            // If it's already a string ID
+            if (typeof guest === 'string') return guest;
+            
+            // If it's a guest object
+            if (guest && typeof guest === 'object') {
+              // Return the guest object with properly formatted data
+              return {
+                name: guest.name,
+                email: guest.email || '',
+                phone: guest.phone || '',
+                type: guest.type || 'adult'
+              };
+            }
+            
+            return null;
+          }).filter(Boolean); // Remove any null entries
+        };
+          
+        return {
+          name: cleanGroup.name || 'Unnamed Group',
+          level1: processGuests(cleanGroup.level1),
+          level2: processGuests(cleanGroup.level2)
+        };
+      });
 
       const response = await fetch(`http://localhost:5001/api/trips/${tripId}`, {
         method: 'PUT',
@@ -222,7 +361,6 @@ export default function GuestManagement() {
   }
 
   return (
-    console.log(groups, guests), 
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Box sx={{ mb: 4, display: 'flex', alignItems: 'center', gap: 2, color: 'black' }}>
         <IconButton onClick={() => navigate(`/trips/${tripId}`)}>
@@ -383,6 +521,67 @@ export default function GuestManagement() {
                   Create Group
                 </Button>
               </Stack>
+              
+              {/* Add Guest to Group Section */}
+              {groups.length > 0 && (
+                <Box sx={{ mt: 4 }}>
+                  <Typography variant="h6" gutterBottom>
+                    Add Guest to Group
+                  </Typography>
+                  <Stack spacing={2}>
+                    <FormControl fullWidth>
+                      <InputLabel>Select Group</InputLabel>
+                      <Select
+                        value={selectedGroupId}
+                        label="Select Group"
+                        onChange={(e) => setSelectedGroupId(e.target.value)}
+                      >
+                        {groups.map(group => (
+                          <MenuItem key={group._id} value={group._id}>
+                            {group.name}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                    
+                    <FormControl fullWidth disabled={!selectedGroupId}>
+                      <InputLabel>Select Guest</InputLabel>
+                      <Select
+                        value={selectedGuestId}
+                        label="Select Guest"
+                        onChange={(e) => setSelectedGuestId(e.target.value)}
+                      >
+                        {guests.map(guest => (
+                          <MenuItem key={guest._id} value={guest._id}>
+                            {guest.name} ({guest.type})
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                    
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      <Button
+                        variant="outlined"
+                        color="primary"
+                        disabled={!selectedGroupId || !selectedGuestId}
+                        onClick={() => handleAddGuestToGroup('level1')}
+                        fullWidth
+                      >
+                        Add as Adult
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        color="secondary"
+                        disabled={!selectedGroupId || !selectedGuestId}
+                        onClick={() => handleAddGuestToGroup('level2')}
+                        fullWidth
+                      >
+                        Add as Child
+                      </Button>
+                    </Box>
+                  </Stack>
+                </Box>
+              )}
             </Paper>
           </Grid>
 
@@ -403,38 +602,50 @@ export default function GuestManagement() {
                     borderRadius: 1
                   }}
                 >
-                  <Typography variant="subtitle1" gutterBottom>
-                    {group.name}
-                  </Typography>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                    <Typography variant="subtitle1">
+                      {group.name}
+                    </Typography>
+                    <IconButton 
+                      size="small" 
+                      color="error"
+                      onClick={() => {
+                        setGroups(prev => prev.filter(g => g._id !== group._id));
+                      }}
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
                   <Grid container spacing={2}>
                     <Grid item xs={12} sm={6}>
                       <Typography variant="subtitle2" color="primary" gutterBottom>
                         Adults
                       </Typography>
                       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                        {group.level1
-                          .filter(g => g.type === 'adult')
-                          .map(guest => (
-                            <Chip
-                              key={guest._id}
-                              label={guest.name}
-                              onClick={() => {
-                                const isInGroup = group.level1.includes(guest._id);
-                                setGroups(prev => prev.map(g => 
-                                  g._id === group._id
-                                    ? {
-                                        ...g,
-                                        level1: isInGroup
-                                          ? g.level1.filter(id => id !== guest._id)
-                                          : [...g.level1, guest._id]
-                                      }
-                                    : g
-                                ));
-                              }}
-                              color={group.level1.includes(guest._id) ? 'primary' : 'default'}
-                              variant={group.level1.includes(guest._id) ? 'filled' : 'outlined'}
-                            />
-                          ))}
+                        {Array.isArray(group.level1) && group.level1.length > 0 ? (
+                          group.level1.map(guest => {
+                            // Get guest object and ID
+                            const guestId = typeof guest === 'string' ? guest : guest._id;
+                            const guestObj = typeof guest === 'string' 
+                              ? guests.find(g => g._id === guest)
+                              : guest;
+                              
+                            if (!guestObj) return null;
+                            
+                            return (
+                              <Chip
+                                key={guestId}
+                                label={guestObj.name}
+                                onDelete={() => handleRemoveGuestFromGroup(group._id, 'level1', guestId)}
+                                color="primary"
+                              />
+                            );
+                          })
+                        ) : (
+                          <Typography variant="body2" color="text.secondary">
+                            No adults in this group
+                          </Typography>
+                        )}
                       </Box>
                     </Grid>
                     <Grid item xs={12} sm={6}>
@@ -442,34 +653,40 @@ export default function GuestManagement() {
                         Children
                       </Typography>
                       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                        {group.level2
-                          .filter(g => g.type === 'child')
-                          .map(guest => (
-                            <Chip
-                              key={guest._id}
-                              label={guest.name}
-                              onClick={() => {
-                                const isInGroup = group.level2.includes(guest._id);
-                                setGroups(prev => prev.map(g => 
-                                  g._id === group._id
-                                    ? {
-                                        ...g,
-                                        level2: isInGroup
-                                          ? g.level2.filter(id => id !== guest._id)
-                                          : [...g.level2, guest._id]
-                                      }
-                                    : g
-                                ));
-                              }}
-                              color={group.level2.includes(guest._id) ? 'secondary' : 'default'}
-                              variant={group.level2.includes(guest._id) ? 'filled' : 'outlined'}
-                            />
-                          ))}
+                        {Array.isArray(group.level2) && group.level2.length > 0 ? (
+                          group.level2.map(guest => {
+                            // Get guest object and ID
+                            const guestId = typeof guest === 'string' ? guest : guest._id;
+                            const guestObj = typeof guest === 'string' 
+                              ? guests.find(g => g._id === guest)
+                              : guest;
+                              
+                            if (!guestObj) return null;
+                            
+                            return (
+                              <Chip
+                                key={guestId}
+                                label={guestObj.name}
+                                onDelete={() => handleRemoveGuestFromGroup(group._id, 'level2', guestId)}
+                                color="secondary"
+                              />
+                            );
+                          })
+                        ) : (
+                          <Typography variant="body2" color="text.secondary">
+                            No children in this group
+                          </Typography>
+                        )}
                       </Box>
                     </Grid>
                   </Grid>
                 </Paper>
               ))}
+              {groups.length === 0 && (
+                <Typography variant="body1" color="text.secondary" align="center" sx={{ py: 4 }}>
+                  No groups created yet. Create a group to organize your guests.
+                </Typography>
+              )}
             </Paper>
           </Grid>
         </Grid>
