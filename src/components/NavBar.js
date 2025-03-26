@@ -174,9 +174,13 @@ export default function NavBar({ isOpen, setIsOpen }) {
     navigate(`/trips/${tripId}`);
   };
 
-  const handleChatClick = (chatId) => {
+  const handleChatClick = (chatId, tripId, experienceId = null) => {
     setSelectedChat(chatId);
-    navigate(`/chat/${chatId}`);
+    if (experienceId) {
+      navigate(`/trips/${tripId}/chat?experienceId=${experienceId}`);
+    } else {
+      navigate(`/trips/${tripId}/chat`);
+    }
   };
 
   const toggleChannels = () => {
@@ -304,7 +308,7 @@ export default function NavBar({ isOpen, setIsOpen }) {
                     {/* Trip Channel */}
                     <ListItem
                       sx={trip.chat._id === selectedChat ? selectedChannelStyle : channelStyle}
-                      onClick={() => handleChatClick(trip.chat._id)}
+                      onClick={() => handleChatClick(trip.chat._id, trip._id)}
                     >
                       <ListItemIcon sx={{ minWidth: 32, color: 'inherit' }}>
                         <TagIcon fontSize="small" />
@@ -330,7 +334,7 @@ export default function NavBar({ isOpen, setIsOpen }) {
                             paddingLeft: '28px',
                             ...(exp.chat._id === selectedChat ? selectedChannelStyle : {})
                           }}
-                          onClick={() => handleChatClick(exp.chat._id)}
+                          onClick={() => handleChatClick(exp.chat._id, trip._id, exp._id)}
                         >
                           <ListItemIcon sx={{ minWidth: 32, color: 'inherit' }}>
                             <TagIcon fontSize="small" />
