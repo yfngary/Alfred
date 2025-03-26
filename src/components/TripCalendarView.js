@@ -36,7 +36,7 @@ import LocalActivityIcon from '@mui/icons-material/LocalActivity';
 // Activity icon component
 const ActivityIcon = () => <LocalActivityIcon />;
 
-const TripCalendarView = ({ onToggleView }) => {
+const TripCalendarView = () => {
   const { tripId } = useParams();
   const [trip, setTrip] = useState({});
   const [events, setEvents] = useState([]);
@@ -48,17 +48,65 @@ const TripCalendarView = ({ onToggleView }) => {
   const theme = useTheme();
   const matches = useMediaQuery(theme.breakpoints.down('sm'));
 
+  // If tripId is missing, set an error
+  useEffect(() => {
+    if (!tripId) {
+      setError('Trip ID is missing. Please return to the dashboard and try again.');
+      setLoading(false);
+    }
+  }, [tripId]);
+
+  // Debug render counter
+  const renderCount = React.useRef(0);
+  renderCount.current += 1;
+
   // Fetch trip data and experiences when component mounts or tripId changes
   useEffect(() => {
+    
     const fetchTripData = async () => {
       setLoading(true);
       setError(null); // Reset error state at the start of fetch
       const token = localStorage.getItem("token");
+
+      if (!tripId) {
+        setError('Trip ID is required to load trip details');
+        setLoading(false);
+        return;
+      }
+      
+      if (!token) {
+        setError('Authentication required');
+        setLoading(false);
+        return;
+      }
       
       try {
-        // Fetch trip details
-        const tripResponse = await fetch(
-          `http://localhost:5001/api/trips/${tripId}`,
+        const apiUrl = `http://localhost:5001/api/trips/${tripId}`;
+        
+        // Create fetch with timeout
+        const fetchWithTimeout = async (url, options, timeout = 8000) => {
+          const controller = new AbortController();
+          const id = setTimeout(() => controller.abort(), timeout);
+          
+          try {
+            const response = await fetch(url, {
+              ...options,
+              signal: controller.signal
+            });
+            clearTimeout(id);
+            return response;
+          } catch (error) {
+            clearTimeout(id);
+            if (error.name === 'AbortError') {
+              throw new Error('Request timed out');
+            }
+            throw error;
+          }
+        };
+        
+        // Fetch trip details with timeout
+        const tripResponse = await fetchWithTimeout(
+          apiUrl,
           {
             method: "GET",
             headers: {
@@ -74,6 +122,7 @@ const TripCalendarView = ({ onToggleView }) => {
         }
         
         const tripData = await tripResponse.json();
+        
         setTrip(tripData);
 
         // Sample experience data based on what you provided
@@ -82,13 +131,25 @@ const TripCalendarView = ({ onToggleView }) => {
         const endDate = tripData.endDate ? new Date(tripData.endDate) : null;
         
         // Transform experiences into calendar events
-        const calendarEvents = experiencesData.map(experience => ({
-          id: experience._id,
-          title: experience.title,
-          start: new Date(`${experience.date.split('T')[0]}T${experience.startTime}`),
-          end: new Date(`${experience.date.split('T')[0]}T${experience.endTime}`),
-          resource: experience
-        }));
+        const calendarEvents = experiencesData.map(experience => {
+          try {
+            return {
+              id: experience._id,
+              title: experience.title,
+              start: new Date(`${experience.date.split('T')[0]}T${experience.startTime}`),
+              end: new Date(`${experience.date.split('T')[0]}T${experience.endTime}`),
+              resource: experience
+            };
+          } catch (err) {
+            console.error(`Error parsing date for experience ${experience.title}:`, err);
+            // Return a partial object that won't break the calendar
+            return {
+              id: experience._id,
+              title: experience.title,
+              resource: experience
+            };
+          }
+        }).filter(event => event.start && event.end); // Only keep events with valid dates
         
         setEvents(calendarEvents);
 
@@ -96,18 +157,23 @@ const TripCalendarView = ({ onToggleView }) => {
         if (!selectedDate && startDate) {
           setSelectedDate(startDate);
         }
+        
       } catch (err) {
-        console.error('Error fetching trip data:', err);
+        console.error('TripCalendarView - Error fetching trip data:', err);
         setError(`Failed to load trip data: ${err.message}`);
       } finally {
+        console.log('TripCalendarView - Finally block, setting loading to false');
         setLoading(false); // Always set loading to false when done
       }
     };
 
     if (tripId) { // Only fetch if tripId exists
       fetchTripData();
+    } else {
+      setLoading(false); // Set loading to false if no tripId
     }
-  }, [tripId, selectedDate]);
+    
+  }, [tripId]); // Dependency on tripId only
 
   // Handle loading state
   if (loading) {
@@ -117,14 +183,14 @@ const TripCalendarView = ({ onToggleView }) => {
           <LinearProgress />
         </Box>
         <Typography variant="body1" color="primary">
-          Loading your adventure...
+          Loading your adventure... (tripId: {tripId})
         </Typography>
       </Box>
     );
   }
 
   // Handle error state
-  if (error || !trip) {
+  if (error || (!trip || Object.keys(trip).length === 0)) {
     return (
       <Paper
         elevation={0}
@@ -137,13 +203,36 @@ const TripCalendarView = ({ onToggleView }) => {
           borderRadius: 1
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <Typography variant="subtitle1" fontWeight="bold" color="error.main" sx={{ mr: 1 }}>
-            Error!
-          </Typography>
-          <Typography variant="body1" color="error.main">
-            {error || "Trip not found."}
-          </Typography>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Typography variant="subtitle1" fontWeight="bold" color="error.main" sx={{ mr: 1 }}>
+              Error!
+            </Typography>
+            <Typography variant="body1" color="error.main">
+              {error || "Trip not found or empty."}
+            </Typography>
+          </Box>
+          
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button 
+              variant="outlined" 
+              color="primary"
+              startIcon={<HomeIcon />}
+              onClick={() => navigate('/dashboard')}
+            >
+              Back to Dashboard
+            </Button>
+            
+            {tripId && (
+              <Button 
+                variant="outlined" 
+                color="primary"
+                onClick={() => navigate(`/trips/${tripId}`)}
+              >
+                Trip Details
+              </Button>
+            )}
+          </Box>
         </Box>
       </Paper>
     );
@@ -194,11 +283,17 @@ const TripCalendarView = ({ onToggleView }) => {
     
     if (events.length > 0) {
       events.forEach(event => {
-        const dateStr = event.start.toDateString();
-        if (!grouped[dateStr]) {
-          grouped[dateStr] = [];
+        try {
+          if (event.start && event.start instanceof Date && !isNaN(event.start)) {
+            const dateStr = event.start.toDateString();
+            if (!grouped[dateStr]) {
+              grouped[dateStr] = [];
+            }
+            grouped[dateStr].push(event);
+          }
+        } catch (err) {
+          console.error('Error grouping event by date:', err, event);
         }
-        grouped[dateStr].push(event);
       });
       
       // Sort events within each day by start time
@@ -297,7 +392,7 @@ const TripCalendarView = ({ onToggleView }) => {
 
   // Navigate to add experience page
   const handleAddExperience = () => {
-    navigate(`/createExperience/${tripId}`, { 
+    navigate(`/trips/${tripId}/create-experience`, { 
       state: { 
         defaultDate: selectedDate ? selectedDate.toISOString().split('T')[0] : null
       } 
@@ -323,7 +418,7 @@ const TripCalendarView = ({ onToggleView }) => {
 
   // Get today's date
   const today = new Date();
-
+  
   return (
     <Box 
       sx={{ 
@@ -332,28 +427,32 @@ const TripCalendarView = ({ onToggleView }) => {
         pt: { xs: 2, sm: 3 },
         pb: { xs: 2, sm: 3 },
         px: { xs: 1, sm: 2, md: 3 },
-        backgroundColor: '#f5f5f5',
-        overflowX: 'hidden'
+        backgroundColor: 'background.default',
+        overflowX: 'hidden',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        flexDirection: 'column',
       }}
     >
       <Box 
         sx={{ 
-          maxWidth: '1400px',
+          width: '80%',
           margin: '0 auto',
-          display: 'flex',
-          flexDirection: 'column',
           gap: 3
         }}
       >
         {/* Trip Header with Progress Bar */}
         <Card 
-          elevation={2} 
+          elevation={0} 
           sx={{ 
             borderRadius: 2,
             position: 'sticky',
             top: 0,
             zIndex: 1000,
-            backgroundColor: 'white'
+            background: 'rgba(0, 0, 0, 0.6)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.1)'
           }}
         >
           <CardContent>
@@ -365,7 +464,7 @@ const TripCalendarView = ({ onToggleView }) => {
               gap: 2,
               mb: 2 
             }}>
-              <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+              <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'text.primary' }}>
                 {trip?.name}
               </Typography>
               <Box sx={{ 
@@ -379,17 +478,16 @@ const TripCalendarView = ({ onToggleView }) => {
                   startIcon={<HomeIcon />}
                   onClick={() => navigate(`/trips/${tripId}`)}
                   fullWidth={matches}
+                  sx={{
+                    borderColor: 'rgba(255, 255, 255, 0.2)',
+                    color: 'text.primary',
+                    '&:hover': {
+                      borderColor: 'rgba(255, 255, 255, 0.3)',
+                      backgroundColor: 'rgba(255, 255, 255, 0.05)'
+                    }
+                  }}
                 >
                   Dashboard
-                </Button>
-                <Button 
-                  variant="outlined" 
-                  size="small" 
-                  startIcon={<MapIcon />}
-                  onClick={onToggleView}
-                  fullWidth={matches}
-                >
-                  Map View
                 </Button>
               </Box>
             </Box>
@@ -416,13 +514,28 @@ const TripCalendarView = ({ onToggleView }) => {
             <LinearProgress 
               variant="determinate" 
               value={calculateTripProgress()} 
-              sx={{ height: 6, borderRadius: 1 }}
+              sx={{ 
+                height: 6, 
+                borderRadius: 1,
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                '& .MuiLinearProgress-bar': {
+                  backgroundImage: 'linear-gradient(90deg, #4776E6 0%, #8E54E9 100%)'
+                }
+              }}
             />
           </CardContent>
         </Card>
         
         {/* Calendar Header */}
-        <Card elevation={2} sx={{ borderRadius: 2 }}>
+        <Card 
+          elevation={0} 
+          sx={{ 
+            borderRadius: 2,
+            background: 'rgba(0, 0, 0, 0.6)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.1)'
+          }}
+        >
           <CardContent>
             <Box sx={{ 
               display: 'flex', 
@@ -435,7 +548,8 @@ const TripCalendarView = ({ onToggleView }) => {
               <Typography variant="h6" sx={{ 
                 display: 'flex', 
                 alignItems: 'center',
-                fontSize: { xs: '1.1rem', sm: '1.25rem' }
+                fontSize: { xs: '1.1rem', sm: '1.25rem' },
+                color: 'text.primary'
               }}>
                 <CalendarTodayIcon sx={{ mr: 1 }} />
                 Calendar View
@@ -450,7 +564,11 @@ const TripCalendarView = ({ onToggleView }) => {
                   onClick={handlePrevDate}
                   disabled={!selectedDate || !allDates.length || selectedDate.toDateString() === allDates[0]?.toDateString()}
                   size="small"
-                  sx={{ mr: 1 }}
+                  sx={{ 
+                    mr: 1,
+                    color: 'text.primary',
+                    '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.05)' }
+                  }}
                 >
                   <NavigateBeforeIcon />
                 </IconButton>
@@ -462,7 +580,8 @@ const TripCalendarView = ({ onToggleView }) => {
                     fontWeight: 'medium',
                     fontSize: { xs: '0.9rem', sm: '1rem' },
                     flex: 1,
-                    textAlign: { xs: 'center', sm: 'left' }
+                    textAlign: { xs: 'center', sm: 'left' },
+                    color: 'text.primary'
                   }}
                 >
                   {selectedDate ? formatDay(selectedDate) : 'Select a date'}
@@ -472,7 +591,11 @@ const TripCalendarView = ({ onToggleView }) => {
                   onClick={handleNextDate}
                   disabled={!selectedDate || !allDates.length || selectedDate.toDateString() === allDates[allDates.length - 1]?.toDateString()}
                   size="small"
-                  sx={{ ml: 1 }}
+                  sx={{ 
+                    ml: 1,
+                    color: 'text.primary',
+                    '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.05)' }
+                  }}
                 >
                   <NavigateNextIcon />
                 </IconButton>
@@ -486,7 +609,8 @@ const TripCalendarView = ({ onToggleView }) => {
               py: 1,
               px: 0.5,
               '&::-webkit-scrollbar': { width: 8, height: 8 },
-              '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(0,0,0,.2)', borderRadius: 4 }
+              '&::-webkit-scrollbar-track': { bgcolor: 'rgba(0, 0, 0, 0.1)' },
+              '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(255, 255, 255, 0.1)', borderRadius: 4 }
             }}>
               <Grid container spacing={2}>
                 {allDates.map((date, index) => {
@@ -501,21 +625,22 @@ const TripCalendarView = ({ onToggleView }) => {
                   return (
                     <Grid item xs={12} sm={6} md={4} lg={3} key={dateStr}>
                       <Paper
-                        elevation={isSelected ? 3 : 1}
+                        elevation={0}
                         onClick={() => setSelectedDate(date)}
                         sx={{
                           height: 180,
                           display: 'flex',
                           flexDirection: 'column',
                           cursor: 'pointer',
-                          border: isSelected ? '2px solid' : '1px solid',
-                          borderColor: isSelected ? 'primary.main' : isToday ? 'warning.main' : 'divider',
-                          bgcolor: isSelected ? 'primary.light' : isToday ? 'warning.light' : 'background.paper',
+                          border: '1px solid',
+                          borderColor: isSelected ? 'primary.main' : isToday ? 'warning.main' : 'rgba(255, 255, 255, 0.1)',
+                          background: isSelected ? 'rgba(71, 118, 230, 0.1)' : isToday ? 'rgba(237, 108, 2, 0.1)' : 'rgba(0, 0, 0, 0.6)',
+                          backdropFilter: 'blur(10px)',
                           opacity: 0.95,
                           '&:hover': {
                             opacity: 1,
-                            boxShadow: 3,
-                            bgcolor: isSelected ? 'primary.light' : isToday ? 'warning.light' : 'action.hover'
+                            borderColor: isSelected ? 'primary.main' : isToday ? 'warning.main' : 'rgba(255, 255, 255, 0.3)',
+                            background: isSelected ? 'rgba(71, 118, 230, 0.2)' : isToday ? 'rgba(237, 108, 2, 0.2)' : 'rgba(255, 255, 255, 0.05)'
                           },
                           overflow: 'hidden'
                         }}
@@ -526,14 +651,14 @@ const TripCalendarView = ({ onToggleView }) => {
                           alignItems: 'center',
                           p: 1,
                           borderBottom: '1px solid',
-                          borderColor: 'divider',
-                          bgcolor: isSelected ? 'primary.main' : isToday ? 'warning.main' : 'grey.100'
+                          borderColor: 'rgba(255, 255, 255, 0.1)',
+                          background: isSelected ? 'rgba(71, 118, 230, 0.2)' : isToday ? 'rgba(237, 108, 2, 0.2)' : 'rgba(0, 0, 0, 0.4)'
                         }}>
                           <Box>
                             <Typography 
                               variant="subtitle2" 
                               sx={{ 
-                                color: isSelected ? 'white' : isToday ? 'white' : 'text.primary',
+                                color: 'text.primary',
                                 fontWeight: 'bold'
                               }}
                             >
@@ -543,7 +668,7 @@ const TripCalendarView = ({ onToggleView }) => {
                               variant="h5" 
                               sx={{ 
                                 fontWeight: 'medium',
-                                color: isSelected ? 'white' : isToday ? 'white' : 'text.primary'
+                                color: 'text.primary'
                               }}
                             >
                               {date.getDate()}
@@ -552,7 +677,7 @@ const TripCalendarView = ({ onToggleView }) => {
                           <Typography 
                             variant="caption" 
                             sx={{ 
-                              color: isSelected ? 'white' : isToday ? 'white' : 'text.secondary',
+                              color: 'text.secondary',
                               fontWeight: 'medium'
                             }}
                           >
@@ -565,7 +690,8 @@ const TripCalendarView = ({ onToggleView }) => {
                           overflowY: 'auto', 
                           p: 1,
                           '&::-webkit-scrollbar': { width: 4 },
-                          '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(0,0,0,.2)', borderRadius: 2 }
+                          '&::-webkit-scrollbar-track': { bgcolor: 'rgba(0, 0, 0, 0.1)' },
+                          '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(255, 255, 255, 0.1)', borderRadius: 2 }
                         }}>
                           {sortedEvents.length > 0 ? (
                             sortedEvents.slice(0, 4).map((event, idx) => (
@@ -580,8 +706,8 @@ const TripCalendarView = ({ onToggleView }) => {
                                   overflow: 'hidden',
                                   textOverflow: 'ellipsis',
                                   border: '1px solid',
-                                  borderColor: getExperienceTypeColor(event.resource?.type),
-                                  bgcolor: `${getExperienceTypeColor(event.resource?.type)}20`,
+                                  borderColor: `${getExperienceTypeColor(event.resource?.type)}50`,
+                                  background: `${getExperienceTypeColor(event.resource?.type)}20`,
                                   color: 'text.primary',
                                   display: 'flex',
                                   alignItems: 'center'
@@ -636,10 +762,13 @@ const TripCalendarView = ({ onToggleView }) => {
         
         {/* Selected Date Details */}
         <Card 
-          elevation={2} 
+          elevation={0} 
           sx={{ 
             borderRadius: 2,
             position: 'relative',
+            background: 'rgba(0, 0, 0, 0.6)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
             '&:hover .add-button': {
               opacity: 1
             }
@@ -649,7 +778,7 @@ const TripCalendarView = ({ onToggleView }) => {
         >
           <CardContent>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center' }}>
+              <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', color: 'text.primary' }}>
                 <ActivityIcon sx={{ mr: 1 }} />
                 {selectedDate ? `Details for ${formatDate(selectedDate)}` : 'Select a date to view details'}
               </Typography>
@@ -661,12 +790,18 @@ const TripCalendarView = ({ onToggleView }) => {
                 onClick={handleAddExperience}
                 size="small"
                 className="add-button"
+                sx={{
+                  backgroundImage: 'linear-gradient(90deg, #4776E6 0%, #8E54E9 100%)',
+                  '&:hover': {
+                    backgroundImage: 'linear-gradient(90deg, #8E54E9 0%, #4776E6 100%)'
+                  }
+                }}
               >
                 Add Experience
               </Button>
             </Box>
             
-            <Divider sx={{ mb: 2 }} />
+            <Divider sx={{ mb: 2, borderColor: 'rgba(255, 255, 255, 0.1)' }} />
             
             {selectedDate ? (
               <>
@@ -680,27 +815,41 @@ const TripCalendarView = ({ onToggleView }) => {
                             variant="outlined"
                             size="small"
                             onClick={() => handleSelectExperience(event.id)}
+                            sx={{
+                              borderColor: 'rgba(255, 255, 255, 0.2)',
+                              color: 'text.primary',
+                              '&:hover': {
+                                borderColor: 'rgba(255, 255, 255, 0.3)',
+                                backgroundColor: 'rgba(255, 255, 255, 0.05)'
+                              }
+                            }}
                           >
                             Details
                           </Button>
                         }
                         sx={{
                           mb: 1,
-                          border: '1px solid #eee',
+                          border: '1px solid rgba(255, 255, 255, 0.1)',
                           borderRadius: 1,
-                          '&:hover': { backgroundColor: '#f9f9f9' },
+                          '&:hover': { 
+                            backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                            borderColor: 'rgba(255, 255, 255, 0.2)'
+                          },
                         }}
                       >
                         <ListItemAvatar>
                           <Avatar
-                            sx={{ bgcolor: getExperienceTypeColor(event.resource?.type) }}
+                            sx={{ 
+                              bgcolor: getExperienceTypeColor(event.resource?.type),
+                              background: `linear-gradient(135deg, ${getExperienceTypeColor(event.resource?.type)}80 0%, ${getExperienceTypeColor(event.resource?.type)} 100%)`
+                            }}
                           >
                             {getExperienceIcon(event.resource?.type)}
                           </Avatar>
                         </ListItemAvatar>
                         <ListItemText
                           primary={
-                            <Typography variant="subtitle1" fontWeight="medium">
+                            <Typography variant="subtitle1" fontWeight="medium" color="text.primary">
                               {event.title}
                             </Typography>
                           }
@@ -711,7 +860,7 @@ const TripCalendarView = ({ onToggleView }) => {
                                 <Typography
                                   component="span"
                                   variant="body2"
-                                  color="text.primary"
+                                  color="text.secondary"
                                   sx={{ mr: 1 }}
                                 >
                                   {formatTime(event.start)} - {formatTime(event.end)}
@@ -720,7 +869,7 @@ const TripCalendarView = ({ onToggleView }) => {
                               {event.resource?.location && (
                                 <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
                                   <LocationOnIcon sx={{ fontSize: 'small', mr: 0.5, color: 'text.secondary' }} />
-                                  <Typography variant="body2">
+                                  <Typography variant="body2" color="text.secondary">
                                     {event.resource.location}
                                   </Typography>
                                 </Box>
@@ -746,7 +895,6 @@ const TripCalendarView = ({ onToggleView }) => {
                       alignItems: 'center',
                       justifyContent: 'center',
                       py: 4,
-                      bgcolor: 'background.paper',
                       borderRadius: 1
                     }}
                   >
@@ -758,6 +906,12 @@ const TripCalendarView = ({ onToggleView }) => {
                       variant="contained"
                       startIcon={<AddIcon />}
                       onClick={handleAddExperience}
+                      sx={{
+                        backgroundImage: 'linear-gradient(90deg, #4776E6 0%, #8E54E9 100%)',
+                        '&:hover': {
+                          backgroundImage: 'linear-gradient(90deg, #8E54E9 0%, #4776E6 100%)'
+                        }
+                      }}
                     >
                       Add Experience
                     </Button>
@@ -772,7 +926,6 @@ const TripCalendarView = ({ onToggleView }) => {
                   alignItems: 'center',
                   justifyContent: 'center',
                   py: 4,
-                  bgcolor: 'background.paper',
                   borderRadius: 1
                 }}
               >

@@ -107,20 +107,6 @@ const ProtectedRoute = ({ children }) => {
   const [localLoading, setLocalLoading] = useState(true);
   const [loadingTimeout, setLoadingTimeout] = useState(false);
 
-  // Add a timeout to prevent infinite loading
-  useEffect(() => {
-    if (loading) {
-      const timer = setTimeout(() => {
-        console.log("Loading timeout triggered after 5 seconds");
-        setLoadingTimeout(true);
-      }, 5000); // 5 second timeout
-
-      return () => clearTimeout(timer);
-    } else {
-      setLocalLoading(false);
-    }
-  }, [loading]);
-
   // If loading, show loading indicator
   if (loading && !loadingTimeout) {
     return (
@@ -140,15 +126,12 @@ const ProtectedRoute = ({ children }) => {
 
   // If we hit the timeout but we have a token, proceed anyway
   if (loadingTimeout) {
-    console.log("Loading timed out, checking fallback authentication");
     const token = localStorage.getItem('token');
     const storedUser = localStorage.getItem('user');
     
     if (token && storedUser) {
-      console.log("Token exists, proceeding despite timeout");
       return children;
     } else {
-      console.log("No token found after timeout, redirecting to login");
       return <Navigate to="/login" state={{ from: location }} replace />;
     }
   }
@@ -164,14 +147,12 @@ const ProtectedRoute = ({ children }) => {
   const storedUser = localStorage.getItem('user');
   
   if (token && storedUser) {
-    console.log("Token found in localStorage but context not updated. Forcing page refresh...");
     // Force a full page refresh to re-initialize the auth context
     window.location.href = location.pathname;
     return <CircularProgress />;
   }
   
   // Not authenticated and no token, redirect to login
-  console.log(`User is not authenticated, redirecting to login from ${location.pathname}`);
   return <Navigate to="/login" state={{ from: location }} replace />;
 };
 
@@ -227,10 +208,12 @@ function Layout() {
       ),
     },
     {
-      path: "/trips/:id/calendar",
+      path: "/trips/:tripId/calendar",
       element: (
         <ProtectedRoute>
-          <TripCalendarView />
+          <Box>
+            <TripCalendarView />
+          </Box>
         </ProtectedRoute>
       ),
     },
