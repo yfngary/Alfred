@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { Box, TextField, Typography, Button } from "@mui/material";
+import { Box, TextField, Typography, Button, Paper, InputAdornment, IconButton } from "@mui/material";
+import { LocationOn as LocationIcon, CalendarToday as CalendarIcon, Hotel as HotelIcon, Add as AddIcon, Delete as DeleteIcon } from "@mui/icons-material";
 import usePlacesAutocomplete, { getGeocode, getLatLng } from "use-places-autocomplete";
 
 const TripLodgingForm = ({ formData, updateFormData }) => {
-  const [lodging, setLodging] = useState(formData.lodging || []);
+  const [lodgings, setLodgings] = useState(formData.lodgings || []);
   const tripStartDate = formData.startDate;
   const tripEndDate = formData.endDate;
+  const [activeIndex, setActiveIndex] = useState(null);
 
   // Initialize usePlacesAutocomplete for suggestions
   const { suggestions, setValue, clearSuggestions } = usePlacesAutocomplete({
@@ -13,15 +15,16 @@ const TripLodgingForm = ({ formData, updateFormData }) => {
   });
 
   const handleLodgingChange = (index, field, value) => {
-    const updatedLodging = [...lodging];
+    const updatedLodging = [...lodgings];
     updatedLodging[index] = { ...updatedLodging[index], [field]: value };
-    setLodging(updatedLodging);
+    setLodgings(updatedLodging);
   };
 
   const handleSelect = async (address, index) => {
     setValue(address, false);
     clearSuggestions();
-    handleLodgingChange(index, "location", address);
+    handleLodgingChange(index, "name", address);
+    setActiveIndex(null);
 
     try {
       const results = await getGeocode({ address });
@@ -34,20 +37,20 @@ const TripLodgingForm = ({ formData, updateFormData }) => {
   };
 
   const addLodging = () => {
-    setLodging([
-      ...lodging,
-      { location: "", startDate: tripStartDate, endDate: tripEndDate },
+    setLodgings([
+      ...lodgings,
+      { name: "", checkIn: tripStartDate, checkOut: tripEndDate },
     ]);
   };
 
   const removeLodging = (index) => {
-    const updatedLodging = lodging.filter((_, i) => i !== index);
-    setLodging(updatedLodging);
+    const updatedLodging = lodgings.filter((_, i) => i !== index);
+    setLodgings(updatedLodging);
   };
 
   useEffect(() => {
-    updateFormData({ lodging });
-  }, [lodging]);
+    updateFormData({ lodgings });
+  }, [lodgings]);
 
   return (
     <Box
@@ -56,50 +59,85 @@ const TripLodgingForm = ({ formData, updateFormData }) => {
         flexDirection: "column",
         gap: 3,
         textAlign: "center",
-        color: "black",
       }}
     >
-      <Typography variant="h5" sx={{ fontWeight: "bold" }}>
+      <Typography variant="h5" sx={{ fontWeight: "bold", mb: 1 }}>
         Lodging Details
       </Typography>
-      <Typography variant="body1">
+      <Typography variant="body1" sx={{ mb: 2, color: "text.secondary" }}>
         Please enter the details for your lodging. You can add multiple lodging locations if needed.
       </Typography>
 
-      {lodging.map((lodgingItem, index) => (
-        <Box
+      {lodgings.map((lodgingItem, index) => (
+        <Paper
           key={index}
+          elevation={2}
           sx={{
             display: "flex",
             flexDirection: "column",
             gap: 2,
-            border: "1px solid #ccc",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
             borderRadius: "8px",
-            p: 2,
-            backgroundColor: "#f9f9f9",
+            p: 3,
+            backgroundColor: "rgba(0, 0, 0, 0.4)",
+            backdropFilter: "blur(10px)",
+            position: "relative",
           }}
         >
+          <Box sx={{ position: "absolute", top: 10, right: 10 }}>
+            <IconButton 
+              color="error" 
+              onClick={() => removeLodging(index)}
+              size="small"
+              sx={{
+                backgroundColor: "rgba(255, 255, 255, 0.1)",
+                "&:hover": {
+                  backgroundColor: "rgba(255, 255, 255, 0.2)",
+                }
+              }}
+            >
+              <DeleteIcon />
+            </IconButton>
+          </Box>
+
+          <Typography variant="h6" sx={{ fontWeight: "bold", color: "primary.main", mb: 1 }}>
+            Lodging {index + 1}
+          </Typography>
+
           <TextField
-            label={`Lodging ${index + 1} Location`}
+            label="Location"
             fullWidth
             variant="outlined"
-            value={lodgingItem.location}
+            value={lodgingItem.name}
             onChange={(e) => {
-              handleLodgingChange(index, "location", e.target.value);
+              handleLodgingChange(index, "name", e.target.value);
               setValue(e.target.value);
+              setActiveIndex(index);
             }}
-            InputLabelProps={{ style: { color: "black", textAlign: "center" } }}
-            InputProps={{ style: { color: "black", textAlign: "center" } }}
+            onFocus={() => setActiveIndex(index)}
+            InputLabelProps={{ shrink: true }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <LocationIcon color="primary" />
+                </InputAdornment>
+              ),
+            }}
           />
 
-          {suggestions.status === "OK" && (
+          {suggestions.status === "OK" && activeIndex === index && (
             <Box
               sx={{
-                border: "1px solid #ccc",
-                borderRadius: "5px",
+                border: "1px solid rgba(255, 255, 255, 0.2)",
+                borderRadius: "8px",
                 p: 1,
-                background: "#fff",
+                background: "rgba(0, 0, 0, 0.6)",
+                backdropFilter: "blur(10px)",
                 mt: 1,
+                maxHeight: "200px",
+                overflowY: "auto",
+                zIndex: 10,
+                position: "relative",
               }}
             >
               {suggestions.data.map((suggestion, i) => (
@@ -108,9 +146,13 @@ const TripLodgingForm = ({ formData, updateFormData }) => {
                   sx={{
                     cursor: "pointer",
                     p: 1,
-                    textAlign: "center",
-                    color: "black",
-                    "&:hover": { backgroundColor: "#f0f0f0" },
+                    textAlign: "left",
+                    color: "white",
+                    borderRadius: "4px",
+                    "&:hover": { 
+                      backgroundColor: "rgba(71, 118, 230, 0.3)",
+                      color: "white"
+                    },
                   }}
                   onClick={() => handleSelect(suggestion.description, index)}
                 >
@@ -121,64 +163,97 @@ const TripLodgingForm = ({ formData, updateFormData }) => {
           )}
 
           <TextField
-            label="Lodging Start Date"
+            label="Start Date"
             type="date"
             fullWidth
             variant="outlined"
-            InputLabelProps={{
-              shrink: true,
-              style: { color: "black", textAlign: "center" },
+            InputLabelProps={{ shrink: true }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <CalendarIcon color="primary" />
+                </InputAdornment>
+              ),
+              sx: {
+                "& input::-webkit-calendar-picker-indicator": {
+                  opacity: 1,
+                  cursor: "pointer",
+                  filter: "invert(0.7)",
+                  width: "24px",
+                  height: "24px",
+                }
+              }
             }}
             inputProps={{
               min: tripStartDate,
               max: tripEndDate,
-              style: { textAlign: "center", color: "black" },
             }}
-            value={lodgingItem.startDate}
+            value={lodgingItem.checkIn}
             onChange={(e) => {
               const newStartDate = e.target.value;
-              handleLodgingChange(index, "startDate", newStartDate);
-              if (newStartDate > lodgingItem.endDate) {
-                handleLodgingChange(index, "endDate", newStartDate);
+              handleLodgingChange(index, "checkIn", newStartDate);
+              if (newStartDate > lodgingItem.checkOut) {
+                handleLodgingChange(index, "checkOut", newStartDate);
               }
             }}
-            InputProps={{ style: { color: "black", textAlign: "center" } }}
+            onClick={(e) => e.target.showPicker()}
           />
 
           <TextField
-            label="Lodging End Date"
+            label="End Date"
             type="date"
             fullWidth
             variant="outlined"
-            InputLabelProps={{
-              shrink: true,
-              style: { color: "black", textAlign: "center" },
+            InputLabelProps={{ shrink: true }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <CalendarIcon color="primary" />
+                </InputAdornment>
+              ),
+              sx: {
+                "& input::-webkit-calendar-picker-indicator": {
+                  opacity: 1,
+                  cursor: "pointer",
+                  filter: "invert(0.7)",
+                  width: "24px",
+                  height: "24px",
+                }
+              }
             }}
             inputProps={{
-              min: lodgingItem.startDate,
+              min: tripStartDate,
               max: tripEndDate,
-              style: { textAlign: "center", color: "black" },
             }}
-            value={lodgingItem.endDate}
+            value={lodgingItem.checkOut}
             onChange={(e) =>
-              handleLodgingChange(index, "endDate", e.target.value)
+              handleLodgingChange(index, "checkOut", e.target.value)
             }
-            InputProps={{ style: { color: "black", textAlign: "center" } }}
+            onClick={(e) => e.target.showPicker()}
           />
-
-          <Button
-            variant="outlined"
-            color="error"
-            onClick={() => removeLodging(index)}
-            sx={{ alignSelf: "center", mt: 1 }}
-          >
-            Remove Lodging
-          </Button>
-        </Box>
+        </Paper>
       ))}
 
-      <Button variant="contained" onClick={addLodging} sx={{ mt: 2, alignSelf: "center" }}>
-        Add Another Lodging
+      <Button 
+        variant="contained" 
+        onClick={addLodging} 
+        startIcon={<AddIcon />}
+        sx={{ 
+          mt: 2, 
+          alignSelf: "center",
+          borderRadius: 2,
+          fontWeight: 600,
+          textTransform: 'none',
+          backgroundImage: 'linear-gradient(90deg, #4776E6 0%, #8E54E9 100%)',
+          boxShadow: '0 4px 10px rgba(0, 0, 0, 0.3)',
+          '&:hover': {
+            backgroundImage: 'linear-gradient(90deg, #8E54E9 0%, #4776E6 100%)',
+            transform: 'translateY(-2px)',
+            boxShadow: '0 10px 20px rgba(0, 0, 0, 0.3)',
+          },
+        }}
+      >
+        Add Lodging
       </Button>
     </Box>
   );

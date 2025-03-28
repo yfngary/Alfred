@@ -243,7 +243,7 @@ const Dashboard = () => {
         variant="contained"
         size="large"
         startIcon={<AddIcon />}
-        onClick={() => navigate('/createTrip')}
+        onClick={() => navigate('/create-trip')}
         sx={{
           py: 2,
           px: 4,
@@ -471,7 +471,7 @@ const Dashboard = () => {
               <Button
                 variant="contained"
                 startIcon={<AddIcon />}
-                onClick={() => navigate('/createTrip')}
+                onClick={() => navigate('/create-trip')}
                 sx={{
                   bgcolor: '#3366FF',
                   '&:hover': {

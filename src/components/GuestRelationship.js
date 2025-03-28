@@ -353,7 +353,7 @@ const GuestRelationship = ({ formData, updateFormData }) => {
     <Box sx={{ p: 3, display: "flex", flexDirection: "column", gap: 3 }}>
       <Typography 
         variant="h5" 
-        sx={{ fontWeight: "bold", textAlign: "center", color: "black" }}
+        sx={{ fontWeight: "bold", textAlign: "center", color: "white" }}
       >
         Organize Guest Relationships
       </Typography>
@@ -371,122 +371,211 @@ const GuestRelationship = ({ formData, updateFormData }) => {
       </Snackbar>
 
       {/* Group Creation */}
-      <Box sx={{ display: "flex", justifyContent: "center", gap: 2 }}>
-        <TextField 
-          label="Group Name" 
-          variant="outlined" 
-          value={newGroupName} 
-          onChange={(e) => setNewGroupName(e.target.value)}
-          InputLabelProps={{ style: { color: "black" } }}
-          sx={{ input: { color: "black" } }}
-        />
-        <Button 
-          variant="contained" 
-          onClick={handleCreateGroup}
-          disabled={!newGroupName.trim()}
-        >
-          Create Group
-        </Button>
-      </Box>
-
-      {/* Selection Controls */}
-      <Box sx={{ display: "flex", justifyContent: "center", gap: 2, flexWrap: "wrap" }}>
-        <FormControl sx={{ minWidth: 200 }}>
-          <InputLabel id="group-select-label">Select Group</InputLabel>
-          <Select
-            labelId="group-select-label"
-            value={selectedGroup}
-            label="Select Group"
-            onChange={(e) => setSelectedGroup(e.target.value)}
-          >
-            {relationshipGroups.map((group) => (
-              <MenuItem key={group.id} value={group.id}>
-                {group.name}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-
-        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-          <Typography variant="subtitle1">Select Guest Role</Typography>
-          <ToggleButtonGroup
-            value={selectedRole}
-            exclusive
-            onChange={(event, newRole) => {
-              if (newRole !== null) {
-                setSelectedRole(newRole);
+      <Paper 
+        sx={{ 
+          p: 3,
+          backgroundColor: 'rgba(0, 0, 0, 0.4)',
+          backdropFilter: 'blur(10px)',
+          borderRadius: 2,
+          border: '1px solid rgba(255, 255, 255, 0.1)'
+        }}
+      >
+        <Box sx={{ display: "flex", justifyContent: "center", gap: 2, flexWrap: "wrap" }}>
+          <TextField 
+            label="Group Name" 
+            variant="outlined" 
+            value={newGroupName} 
+            onChange={(e) => setNewGroupName(e.target.value)}
+            InputLabelProps={{ sx: { color: "rgba(255, 255, 255, 0.7)" } }}
+            InputProps={{ 
+              style: { color: "white" },
+              sx: {
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: 'rgba(255, 255, 255, 0.23)',
+                },
+                '&:hover .MuiOutlinedInput-notchedOutline': {
+                  borderColor: 'rgba(255, 255, 255, 0.4)',
+                },
+                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                  borderColor: 'primary.main',
+                }
+              } 
+            }}
+            sx={{ flexGrow: 1 }}
+          />
+          <Button 
+            variant="contained" 
+            onClick={handleCreateGroup}
+            disabled={!newGroupName.trim()}
+            sx={{
+              borderRadius: 2,
+              fontWeight: 600,
+              textTransform: 'none',
+              backgroundImage: 'linear-gradient(90deg, #4776E6 0%, #8E54E9 100%)',
+              boxShadow: '0 4px 10px rgba(0, 0, 0, 0.3)',
+              '&:hover': {
+                backgroundImage: 'linear-gradient(90deg, #8E54E9 0%, #4776E6 100%)',
+                transform: 'translateY(-2px)',
+                boxShadow: '0 10px 20px rgba(0, 0, 0, 0.3)',
+              },
+              '&.Mui-disabled': {
+                backgroundImage: 'none',
+                backgroundColor: 'rgba(255, 255, 255, 0.12)',
               }
             }}
-            aria-label="guest role selection"
-            sx={{ mt: 1 }}
           >
-            <ToggleButton value="level1" aria-label="Adult" sx={{ textTransform: 'none' }}>
-              Adults (Level 1)
-            </ToggleButton>
-            <ToggleButton value="level2" aria-label="Dependent/Kid" sx={{ textTransform: 'none' }}>
-              Dependents / Kids (Level 2)
-            </ToggleButton>
-          </ToggleButtonGroup>
+            Create Group
+          </Button>
         </Box>
-      </Box>
+      </Paper>
+
+      {/* Selection Controls */}
+      <Paper 
+        sx={{ 
+          p: 3,
+          backgroundColor: 'rgba(0, 0, 0, 0.4)',
+          backdropFilter: 'blur(10px)',
+          borderRadius: 2,
+          border: '1px solid rgba(255, 255, 255, 0.1)'
+        }}
+      >
+        <Box sx={{ display: "flex", justifyContent: "center", gap: 2, flexWrap: "wrap" }}>
+          <FormControl sx={{ minWidth: 200, flexGrow: 1 }}>
+            <InputLabel id="group-select-label" sx={{ color: "rgba(255, 255, 255, 0.7)" }}>Select Group</InputLabel>
+            <Select
+              labelId="group-select-label"
+              value={selectedGroup}
+              label="Select Group"
+              onChange={(e) => setSelectedGroup(e.target.value)}
+              sx={{ 
+                color: "white",
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: 'rgba(255, 255, 255, 0.23)',
+                },
+                '&:hover .MuiOutlinedInput-notchedOutline': {
+                  borderColor: 'rgba(255, 255, 255, 0.4)',
+                },
+                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                  borderColor: 'primary.main',
+                },
+                '& .MuiSelect-icon': {
+                  color: 'rgba(255, 255, 255, 0.7)'
+                }
+              }}
+              MenuProps={{
+                PaperProps: {
+                  sx: {
+                    bgcolor: 'rgba(0, 0, 0, 0.8)',
+                    '& .MuiMenuItem-root': {
+                      color: 'white',
+                      '&:hover': {
+                        bgcolor: 'rgba(71, 118, 230, 0.1)',
+                      },
+                      '&.Mui-selected': {
+                        bgcolor: 'rgba(71, 118, 230, 0.2)',
+                      },
+                    },
+                  },
+                },
+              }}
+            >
+              {relationshipGroups.map((group) => (
+                <MenuItem key={group.id} value={group.id}>
+                  {group.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+            <Typography variant="subtitle1" sx={{ color: "white" }}>Select Guest Role</Typography>
+            <ToggleButtonGroup
+              value={selectedRole}
+              exclusive
+              onChange={(event, newRole) => {
+                if (newRole !== null) {
+                  setSelectedRole(newRole);
+                }
+              }}
+              aria-label="guest role selection"
+              sx={{ 
+                mt: 1,
+                '& .MuiToggleButtonGroup-grouped': {
+                  border: '1px solid rgba(255, 255, 255, 0.2) !important',
+                  color: 'white',
+                  '&.Mui-selected': {
+                    backgroundColor: 'rgba(71, 118, 230, 0.2)',
+                    color: 'white',
+                  },
+                  '&:hover': {
+                    backgroundColor: 'rgba(71, 118, 230, 0.1)',
+                  }
+                }
+              }}
+            >
+              <ToggleButton value="level1" aria-label="Adult" sx={{ textTransform: 'none' }}>
+                Adults (Level 1)
+              </ToggleButton>
+              <ToggleButton value="level2" aria-label="Dependent/Kid" sx={{ textTransform: 'none' }}>
+                Dependents / Kids (Level 2)
+              </ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
+        </Box>
+      </Paper>
 
       {/* Available Guests */}
-      <Box>
-        <Typography variant="subtitle1" sx={{ textAlign: "center", color: "black", mb: 1 }}>
-          Available Guests (Click to assign)
+      <Paper 
+        sx={{ 
+          p: 3,
+          backgroundColor: 'rgba(0, 0, 0, 0.4)',
+          backdropFilter: 'blur(10px)',
+          borderRadius: 2,
+          border: '1px solid rgba(255, 255, 255, 0.1)'
+        }}
+      >
+        <Typography variant="h6" sx={{ mb: 2, color: "white", fontWeight: "bold" }}>
+          Available Guests ({availableGuests.length})
         </Typography>
-        <Paper 
-          elevation={2}
-          sx={{
-            p: 2,
-            backgroundColor: "#f5f5f5",
-            border: "1px dashed #ccc",
-            minHeight: "100px"
-          }}
-        >
-          <Box sx={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 1,
-            justifyContent: "center"
-          }}>
-            {availableGuests.length === 0 ? (
-              <Typography sx={{ color: "gray" }}>All guests have been assigned</Typography>
-            ) : (
-              availableGuests.map((guest) => (
-                <Paper
-                  key={guest._id}
-                  onClick={() => handleAddGuestToGroup(guest)}
-                  sx={{
-                    p: 1,
-                    backgroundColor: guest.type === "adult" ? "#e3f2fd" : "#fff3e0",
-                    border: "1px solid #ccc",
-                    cursor: "pointer",
-                    minWidth: "100px",
-                    textAlign: "center",
-                    color: "black",
-                    transition: "all 0.2s",
-                    "&:hover": {
-                      transform: "scale(1.05)",
-                      boxShadow: 2
-                    }
-                  }}
-                >
-                  {guest.name}
-                </Paper>
-              ))
-            )}
-          </Box>
-        </Paper>
-      </Box>
 
-      {/* Display Groups */}
-      <Typography variant="h6" sx={{ textAlign: "center", color: "black", mt: 2 }}>
-        Guest Groups
-      </Typography>
+        {availableGuests.length === 0 ? (
+          <Typography sx={{ color: "rgba(255, 255, 255, 0.7)", textAlign: "center" }}>
+            All guests have been assigned to groups.
+          </Typography>
+        ) : (
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+            {availableGuests.map((guest) => (
+              <Button
+                key={guest._id}
+                variant="outlined"
+                onClick={() => handleAddGuestToGroup(guest)}
+                disabled={!selectedGroup}
+                sx={{
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  borderColor: guest.type === 'adult' ? 'rgba(71, 118, 230, 0.5)' : 'rgba(142, 84, 233, 0.5)',
+                  color: 'white',
+                  backgroundColor: guest.type === 'adult' ? 'rgba(71, 118, 230, 0.1)' : 'rgba(142, 84, 233, 0.1)',
+                  '&:hover': {
+                    backgroundColor: guest.type === 'adult' ? 'rgba(71, 118, 230, 0.2)' : 'rgba(142, 84, 233, 0.2)',
+                    borderColor: guest.type === 'adult' ? 'rgba(71, 118, 230, 0.8)' : 'rgba(142, 84, 233, 0.8)',
+                  },
+                  '&.Mui-disabled': {
+                    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                    borderColor: 'rgba(255, 255, 255, 0.12)',
+                    color: 'rgba(255, 255, 255, 0.3)'
+                  }
+                }}
+              >
+                {guest.name}
+              </Button>
+            ))}
+          </Box>
+        )}
+      </Paper>
       
       {relationshipGroups.length === 0 ? (
-        <Typography sx={{ color: "gray", textAlign: "center" }}>
+        <Typography sx={{ color: "rgba(255, 255, 255, 0.7)", textAlign: "center" }}>
           No groups created. Create a group and then assign guests.
         </Typography>
       ) : (
@@ -497,9 +586,15 @@ const GuestRelationship = ({ formData, updateFormData }) => {
               elevation={3}
               sx={{ 
                 p: 2, 
-                backgroundColor: "#e8f5e9", 
-                border: "1px solid #66bb6a", 
-                borderRadius: "8px"
+                backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                backdropFilter: 'blur(10px)',
+                borderRadius: 2,
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)',
+                  transform: 'translateY(-2px)'
+                }
               }}
             >
               <Box sx={{ 
@@ -507,10 +602,10 @@ const GuestRelationship = ({ formData, updateFormData }) => {
                 justifyContent: "space-between", 
                 alignItems: "center",
                 mb: 1,
-                borderBottom: "1px solid #66bb6a",
+                borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
                 pb: 1
               }}>
-                <Typography variant="h6" sx={{ fontWeight: "bold", color: "black" }}>
+                <Typography variant="h6" sx={{ fontWeight: "bold", color: "white" }}>
                   {group.name}
                 </Typography>
                 <Box>
@@ -518,7 +613,12 @@ const GuestRelationship = ({ formData, updateFormData }) => {
                     <IconButton 
                       size="small" 
                       onClick={() => handleEditGroupClick(group)}
-                      sx={{ color: "#2196f3" }}
+                      sx={{ 
+                        color: "#4776E6",
+                        '&:hover': {
+                          backgroundColor: 'rgba(71, 118, 230, 0.1)'
+                        }
+                      }}
                     >
                       <EditIcon />
                     </IconButton>
@@ -527,129 +627,124 @@ const GuestRelationship = ({ formData, updateFormData }) => {
                     <IconButton 
                       size="small" 
                       onClick={() => handleDeleteGroupClick(group)}
-                      sx={{ color: "#f44336" }}
+                      sx={{ 
+                        color: "#f44336",
+                        '&:hover': {
+                          backgroundColor: 'rgba(244, 67, 54, 0.1)'
+                        }
+                      }}
                     >
                       <DeleteIcon />
                     </IconButton>
                   </Tooltip>
                 </Box>
               </Box>
-
-              <Box sx={{ display: "flex", gap: 2, mt: 2, flexWrap: { xs: "wrap", md: "nowrap" } }}>
+              
+              <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, gap: 2 }}>
                 {/* Level 1 (Adults) */}
-                <Box sx={{ flex: 1, minWidth: { xs: "100%", md: "45%" } }}>
-                  <Typography 
-                    variant="subtitle1" 
-                    sx={{ 
-                      textAlign: "center", 
-                      color: "black", 
-                      backgroundColor: "#81c784", 
-                      p: 1,
-                      borderRadius: "4px 4px 0 0"
-                    }}
-                  >
-                    Level 1 (Adults)
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="subtitle1" sx={{ color: "#4776E6", fontWeight: "bold", mb: 1 }}>
+                    Adults
                   </Typography>
-                  <Box sx={{ 
-                    p: 1, 
-                    backgroundColor: "#f1f8e9", 
-                    minHeight: "100px",
-                    borderRadius: "0 0 4px 4px",
-                    border: "1px solid #81c784",
-                    borderTop: "none"
-                  }}>
-                    {group.level1.length === 0 ? (
-                      <Typography sx={{ color: "gray", textAlign: "center", py: 2 }}>
-                        No adults assigned
-                      </Typography>
-                    ) : (
-                      <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                        {group.level1.map((guest) => (
-                          <Paper
-                            key={guest._id}
-                            sx={{
-                              p: 1,
-                              backgroundColor: "#e3f2fd",
-                              display: "flex",
-                              justifyContent: "space-between",
-                              alignItems: "center"
-                            }}
-                          >
-                            <Typography sx={{ color: "black", fontWeight: "medium" }}>
-                              {guest.name}
-                            </Typography>
-                            <Tooltip title="Remove from group">
-                              <IconButton 
-                                size="small"
-                                onClick={() => handleRemoveGuestFromGroup(group.id, "level1", guest._id)}
-                                sx={{ color: "#f44336" }}
-                              >
-                                <PersonRemoveIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                          </Paper>
-                        ))}
-                      </Box>
-                    )}
-                  </Box>
+                  
+                  {group.level1.length === 0 ? (
+                    <Typography sx={{ color: "rgba(255, 255, 255, 0.7)", textAlign: "center", py: 2 }}>
+                      No adults assigned
+                    </Typography>
+                  ) : (
+                    <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                      {group.level1.map((guest) => (
+                        <Paper
+                          key={guest._id}
+                          sx={{
+                            p: 1,
+                            backgroundColor: 'rgba(71, 118, 230, 0.1)',
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            borderRadius: 1,
+                            border: '1px solid rgba(71, 118, 230, 0.2)',
+                            transition: 'all 0.2s ease',
+                            '&:hover': {
+                              backgroundColor: 'rgba(71, 118, 230, 0.2)',
+                              border: '1px solid rgba(71, 118, 230, 0.3)'
+                            }
+                          }}
+                        >
+                          <Typography sx={{ color: "white", fontWeight: "medium" }}>
+                            {guest.name}
+                          </Typography>
+                          <Tooltip title="Remove from group">
+                            <IconButton 
+                              size="small"
+                              onClick={() => handleRemoveGuestFromGroup(group.id, "level1", guest._id)}
+                              sx={{ 
+                                color: "#f44336",
+                                '&:hover': {
+                                  backgroundColor: 'rgba(244, 67, 54, 0.1)'
+                                }
+                              }}
+                            >
+                              <PersonRemoveIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </Paper>
+                      ))}
+                    </Box>
+                  )}
                 </Box>
 
                 {/* Level 2 (Dependents/Kids) */}
-                <Box sx={{ flex: 1, minWidth: { xs: "100%", md: "45%" } }}>
-                  <Typography 
-                    variant="subtitle1" 
-                    sx={{ 
-                      textAlign: "center", 
-                      color: "black", 
-                      backgroundColor: "#ffb74d", 
-                      p: 1,
-                      borderRadius: "4px 4px 0 0"
-                    }}
-                  >
-                    Level 2 (Dependents/Kids)
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="subtitle1" sx={{ color: "#8E54E9", fontWeight: "bold", mb: 1 }}>
+                    Dependents / Kids
                   </Typography>
-                  <Box sx={{ 
-                    p: 1, 
-                    backgroundColor: "#fff3e0", 
-                    minHeight: "100px",
-                    borderRadius: "0 0 4px 4px",
-                    border: "1px solid #ffb74d",
-                    borderTop: "none"
-                  }}>
-                    {group.level2.length === 0 ? (
-                      <Typography sx={{ color: "gray", textAlign: "center", py: 2 }}>
-                        No dependents/kids assigned
-                      </Typography>
-                    ) : (
-                      <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                        {group.level2.map((guest) => (
-                          <Paper
-                            key={guest._id}
-                            sx={{
-                              p: 1,
-                              backgroundColor: "#fff",
-                              display: "flex",
-                              justifyContent: "space-between",
-                              alignItems: "center"
-                            }}
-                          >
-                            <Typography sx={{ color: "black", fontWeight: "medium" }}>
-                              {guest.name}
-                            </Typography>
-                            <Tooltip title="Remove from group">
-                              <IconButton 
-                                size="small"
-                                onClick={() => handleRemoveGuestFromGroup(group.id, "level2", guest._id)}
-                                sx={{ color: "#f44336" }}
-                              >
-                                <PersonRemoveIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                          </Paper>
-                        ))}
-                      </Box>
-                    )}
-                  </Box>
+                  
+                  {group.level2.length === 0 ? (
+                    <Typography sx={{ color: "rgba(255, 255, 255, 0.7)", textAlign: "center", py: 2 }}>
+                      No dependents/kids assigned
+                    </Typography>
+                  ) : (
+                    <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                      {group.level2.map((guest) => (
+                        <Paper
+                          key={guest._id}
+                          sx={{
+                            p: 1,
+                            backgroundColor: 'rgba(142, 84, 233, 0.1)',
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            borderRadius: 1,
+                            border: '1px solid rgba(142, 84, 233, 0.2)',
+                            transition: 'all 0.2s ease',
+                            '&:hover': {
+                              backgroundColor: 'rgba(142, 84, 233, 0.2)',
+                              border: '1px solid rgba(142, 84, 233, 0.3)'
+                            }
+                          }}
+                        >
+                          <Typography sx={{ color: "white", fontWeight: "medium" }}>
+                            {guest.name}
+                          </Typography>
+                          <Tooltip title="Remove from group">
+                            <IconButton 
+                              size="small"
+                              onClick={() => handleRemoveGuestFromGroup(group.id, "level2", guest._id)}
+                              sx={{ 
+                                color: "#f44336",
+                                '&:hover': {
+                                  backgroundColor: 'rgba(244, 67, 54, 0.1)'
+                                }
+                              }}
+                            >
+                              <PersonRemoveIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </Paper>
+                      ))}
+                    </Box>
+                  )}
                 </Box>
               </Box>
             </Paper>
@@ -658,38 +753,113 @@ const GuestRelationship = ({ formData, updateFormData }) => {
       )}
 
       {/* Edit Group Dialog */}
-      <Dialog open={editGroupDialog} onClose={() => setEditGroupDialog(false)}>
-        <DialogTitle>Edit Group Name</DialogTitle>
+      <Dialog open={editGroupDialog} onClose={() => setEditGroupDialog(false)}
+        PaperProps={{
+          sx: {
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            backdropFilter: 'blur(10px)',
+            borderRadius: 2,
+            border: '1px solid rgba(255, 255, 255, 0.1)'
+          }
+        }}
+      >
+        <DialogTitle sx={{ color: 'white' }}>Edit Group Name</DialogTitle>
         <DialogContent>
           <TextField
             autoFocus
             margin="dense"
             label="Group Name"
+            type="text"
             fullWidth
-            variant="outlined"
             value={editedGroupName}
             onChange={(e) => setEditedGroupName(e.target.value)}
+            InputLabelProps={{ sx: { color: "rgba(255, 255, 255, 0.7)" } }}
+            InputProps={{ 
+              style: { color: "white" },
+              sx: {
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: 'rgba(255, 255, 255, 0.23)',
+                },
+                '&:hover .MuiOutlinedInput-notchedOutline': {
+                  borderColor: 'rgba(255, 255, 255, 0.4)',
+                },
+                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                  borderColor: 'primary.main',
+                }
+              } 
+            }}
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setEditGroupDialog(false)}>Cancel</Button>
-          <Button onClick={handleSaveGroupName} variant="contained" color="primary">
+          <Button 
+            onClick={() => setEditGroupDialog(false)} 
+            sx={{ 
+              color: 'white',
+              '&:hover': {
+                backgroundColor: 'rgba(255, 255, 255, 0.05)'
+              }
+            }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleSaveGroupName} 
+            disabled={!editedGroupName.trim()}
+            sx={{
+              color: 'white',
+              backgroundImage: 'linear-gradient(90deg, #4776E6 0%, #8E54E9 100%)',
+              '&:hover': {
+                backgroundImage: 'linear-gradient(90deg, #8E54E9 0%, #4776E6 100%)',
+              },
+            }}
+          >
             Save
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialog} onClose={() => setDeleteDialog(false)}>
-        <DialogTitle>Confirm Delete</DialogTitle>
+      {/* Delete Group Dialog */}
+      <Dialog
+        open={deleteDialog}
+        onClose={() => setDeleteDialog(false)}
+        PaperProps={{
+          sx: {
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            backdropFilter: 'blur(10px)',
+            borderRadius: 2,
+            border: '1px solid rgba(255, 255, 255, 0.1)'
+          }
+        }}
+      >
+        <DialogTitle sx={{ color: 'white' }}>Delete Group</DialogTitle>
         <DialogContent>
-          <Typography>
-            Are you sure you want to delete the group "{groupToDelete?.name}"? All guests will be returned to the available pool.
+          <Typography sx={{ color: 'white' }}>
+            Are you sure you want to delete the group "{groupToDelete?.name}"? All guests will be unassigned from this group.
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteDialog(false)}>Cancel</Button>
-          <Button onClick={handleDeleteGroup} variant="contained" color="error">
+          <Button 
+            onClick={() => setDeleteDialog(false)}
+            sx={{ 
+              color: 'white',
+              '&:hover': {
+                backgroundColor: 'rgba(255, 255, 255, 0.05)'
+              }
+            }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleDeleteGroup} 
+            color="error" 
+            sx={{
+              backgroundColor: 'rgba(211, 47, 47, 0.8)',
+              color: 'white',
+              '&:hover': {
+                backgroundColor: '#d32f2f'
+              }
+            }}
+          >
             Delete
           </Button>
         </DialogActions>

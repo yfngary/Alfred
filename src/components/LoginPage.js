@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, memo } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import "../styles/login.css";
 
 // Memoized star component to prevent re-rendering
@@ -85,6 +85,12 @@ export default function LoginPage() {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [isResendingVerification, setIsResendingVerification] = useState(false);
+  const [resendEmail, setResendEmail] = useState("");
+  const [showResendForm, setShowResendForm] = useState(false);
+  const [showForgotPasswordForm, setShowForgotPasswordForm] = useState(false);
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState("");
+  const [isRequestingPasswordReset, setIsRequestingPasswordReset] = useState(false);
 
   // Generate random stars only once and memoize them
   const stars = useMemo(() => {
@@ -103,6 +109,24 @@ export default function LoginPage() {
     
     return generatedStars;
   }, []);
+
+  // Check for verification success in URL query params
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const isVerified = searchParams.get('verified') === 'true';
+    
+    if (isVerified) {
+      setMessage("Your email has been verified successfully! You can now log in.");
+    }
+    
+    // Check if we should show resend verification form
+    if (location.state?.resendVerification) {
+      setShowResendForm(true);
+      if (location.state.email) {
+        setResendEmail(location.state.email);
+      }
+    }
+  }, [location]);
 
   // Debug effect to monitor authentication state
   useEffect(() => {
@@ -139,6 +163,30 @@ export default function LoginPage() {
     if (!formData.password) tempErrors.password = "Password is required";
     setErrors(tempErrors);
     return Object.keys(tempErrors).length === 0;
+  };
+
+  const validateResendEmail = () => {
+    if (!resendEmail) {
+      setErrors(prev => ({ ...prev, resendEmail: "Email is required" }));
+      return false;
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(resendEmail)) {
+      setErrors(prev => ({ ...prev, resendEmail: "Invalid email format" }));
+      return false;
+    }
+    setErrors(prev => ({ ...prev, resendEmail: "" }));
+    return true;
+  };
+
+  const validateForgotPasswordEmail = () => {
+    if (!forgotPasswordEmail) {
+      setErrors(prev => ({ ...prev, forgotPasswordEmail: "Email is required" }));
+      return false;
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(forgotPasswordEmail)) {
+      setErrors(prev => ({ ...prev, forgotPasswordEmail: "Invalid email format" }));
+      return false;
+    }
+    setErrors(prev => ({ ...prev, forgotPasswordEmail: "" }));
+    return true;
   };
 
   const handleSubmit = async (e) => {
@@ -210,7 +258,16 @@ export default function LoginPage() {
         } else {
           const errorMessage = result.error || result.message || "Login failed. Please check your credentials.";
           console.error("Login failed:", errorMessage);
-          setMessage(errorMessage);
+          
+          // Check if this is an email verification error
+          if (result.error === "Email not verified") {
+            setMessage("Your email is not verified. Please check your inbox for the verification email or request a new one.");
+            // Store the email for resend form
+            setResendEmail(formData.email);
+            setShowResendForm(true);
+          } else {
+            setMessage(errorMessage);
+          }
         }
       } catch (error) {
         console.error("Login error:", error);
@@ -225,6 +282,65 @@ export default function LoginPage() {
     }
   };
 
+  const handleResendVerification = async (e) => {
+    e.preventDefault();
+    if (validateResendEmail()) {
+      setIsResendingVerification(true);
+      
+      try {
+        const response = await fetch("http://localhost:5001/api/auth/resend-verification", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: resendEmail }),
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+          setMessage("Verification email has been resent. Please check your inbox.");
+          setShowResendForm(false);
+        } else {
+          setMessage(result.error || result.message || "Failed to resend verification email.");
+        }
+      } catch (error) {
+        console.error("Resend verification error:", error);
+        setMessage("An unexpected error occurred. Please try again.");
+      }
+      
+      setIsResendingVerification(false);
+    }
+  };
+
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    if (validateForgotPasswordEmail()) {
+      setIsRequestingPasswordReset(true);
+      setMessage("");
+      
+      try {
+        const response = await fetch("http://localhost:5001/api/auth/forgot-password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: forgotPasswordEmail }),
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+          setMessage("Password reset link sent to your email. Please check your inbox.");
+          // Keep the form open but provide feedback
+        } else {
+          setMessage(result.error || result.message || "Failed to request password reset.");
+        }
+      } catch (error) {
+        console.error("Password reset request error:", error);
+        setMessage("An unexpected error occurred. Please try again.");
+      }
+      
+      setIsRequestingPasswordReset(false);
+    }
+  };
+
   return (
     <div className="login-page-wrapper">
       {/* Use memoized background component */}
@@ -233,50 +349,189 @@ export default function LoginPage() {
       <div className="login-container">
         <h2>Adventure Awaits</h2>
         {message && (
-          <p className={`text-center text-sm ${message.includes("successful") ? "text-green-500" : "text-red-500"}`}
+          <p className={`text-center text-sm ${message.includes("successful") || message.includes("verified") || message.includes("reset link sent") ? "text-green-500" : "text-red-500"}`}
              style={{ textAlign: 'center', marginBottom: '15px', fontWeight: 'bold' }}>
             {message}
           </p>
         )}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="email"
-            name="email"
-            placeholder="Email"
-            value={formData.email}
-            onChange={handleChange}
-            className={`login-input ${errors.email ? "border-red-500" : ""}`}
-            disabled={loading}
-          />
-          {errors.email && (
-            <p className="text-red-500 text-sm" style={{ marginTop: '-10px', marginBottom: '10px', fontSize: '0.8rem' }}>
-              {errors.email}
-            </p>
-          )}
+        
+        {showForgotPasswordForm ? (
+          <>
+            <form onSubmit={handleForgotPassword} className="space-y-4">
+              <h3 style={{ textAlign: 'center', marginBottom: '15px' }}>Reset Your Password</h3>
+              <p style={{ textAlign: 'center', marginBottom: '20px', fontSize: '0.9rem', color: 'white' }}>
+                Enter your email address and we'll send you a link to reset your password.
+              </p>
+              <input
+                type="email"
+                name="forgotPasswordEmail"
+                placeholder="Email"
+                value={forgotPasswordEmail}
+                onChange={(e) => {
+                  setForgotPasswordEmail(e.target.value);
+                  if (errors.forgotPasswordEmail) {
+                    setErrors(prev => ({ ...prev, forgotPasswordEmail: "" }));
+                  }
+                }}
+                className={`login-input ${errors.forgotPasswordEmail ? "border-red-500" : ""}`}
+                disabled={isRequestingPasswordReset}
+              />
+              {errors.forgotPasswordEmail && (
+                <p className="text-red-500 text-sm" style={{ marginTop: '-10px', marginBottom: '10px', fontSize: '0.8rem' }}>
+                  {errors.forgotPasswordEmail}
+                </p>
+              )}
+              
+              <button 
+                type="submit" 
+                className={`login-button ${isRequestingPasswordReset ? "opacity-50 cursor-not-allowed" : ""}`} 
+                disabled={isRequestingPasswordReset}
+              >
+                {isRequestingPasswordReset ? "Sending..." : "Send Reset Link"}
+              </button>
+              
+              <p 
+                style={{ 
+                  textAlign: 'center', 
+                  marginTop: '15px', 
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                  color: '#4a90e2'
+                }}
+                onClick={() => setShowForgotPasswordForm(false)}
+              >
+                Back to Login
+              </p>
+            </form>
+          </>
+        ) : showResendForm ? (
+          <>
+            <form onSubmit={handleResendVerification} className="space-y-4">
+              <h3 style={{ textAlign: 'center', marginBottom: '15px' }}>Resend Verification Email</h3>
+              <input
+                type="email"
+                name="resendEmail"
+                placeholder="Email"
+                value={resendEmail}
+                onChange={(e) => {
+                  setResendEmail(e.target.value);
+                  if (errors.resendEmail) {
+                    setErrors(prev => ({ ...prev, resendEmail: "" }));
+                  }
+                }}
+                className={`login-input ${errors.resendEmail ? "border-red-500" : ""}`}
+                disabled={isResendingVerification}
+              />
+              {errors.resendEmail && (
+                <p className="text-red-500 text-sm" style={{ marginTop: '-10px', marginBottom: '10px', fontSize: '0.8rem' }}>
+                  {errors.resendEmail}
+                </p>
+              )}
+              
+              <button 
+                type="submit" 
+                className={`login-button ${isResendingVerification ? "opacity-50 cursor-not-allowed" : ""}`} 
+                disabled={isResendingVerification}
+              >
+                {isResendingVerification ? "Sending..." : "Resend Verification Email"}
+              </button>
+              
+              <p 
+                style={{ 
+                  textAlign: 'center', 
+                  marginTop: '15px', 
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                  color: '#4a90e2'
+                }}
+                onClick={() => setShowResendForm(false)}
+              >
+                Back to Login
+              </p>
+            </form>
+          </>
+        ) : (
+          <>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <input
+                type="email"
+                name="email"
+                placeholder="Email"
+                value={formData.email}
+                onChange={handleChange}
+                className={`login-input ${errors.email ? "border-red-500" : ""}`}
+                disabled={loading}
+              />
+              {errors.email && (
+                <p className="text-red-500 text-sm" style={{ marginTop: '-10px', marginBottom: '10px', fontSize: '0.8rem' }}>
+                  {errors.email}
+                </p>
+              )}
 
-          <input
-            type="password"
-            name="password"
-            placeholder="Password"
-            value={formData.password}
-            onChange={handleChange}
-            className={`login-input ${errors.password ? "border-red-500" : ""}`}
-            disabled={loading}
-          />
-          {errors.password && (
-            <p className="text-red-500 text-sm" style={{ marginTop: '-10px', marginBottom: '10px', fontSize: '0.8rem' }}>
-              {errors.password}
-            </p>
-          )}
+              <input
+                type="password"
+                name="password"
+                placeholder="Password"
+                value={formData.password}
+                onChange={handleChange}
+                className={`login-input ${errors.password ? "border-red-500" : ""}`}
+                disabled={loading}
+              />
+              {errors.password && (
+                <p className="text-red-500 text-sm" style={{ marginTop: '-10px', marginBottom: '10px', fontSize: '0.8rem' }}>
+                  {errors.password}
+                </p>
+              )}
 
-          <button 
-            type="submit" 
-            className={`login-button ${loading ? "opacity-50 cursor-not-allowed" : ""}`} 
-            disabled={loading}
-          >
-            {loading ? "Embarking..." : "Begin Your Journey"}
-          </button>
-        </form>
+              <p 
+                style={{ 
+                  textAlign: 'right', 
+                  marginTop: '5px', 
+                  marginBottom: '15px',
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                  color: '#4a90e2',
+                  fontSize: '0.9rem'
+                }}
+                onClick={() => setShowForgotPasswordForm(true)}
+              >
+                Forgot Password?
+              </p>
+
+              <button 
+                type="submit" 
+                className={`login-button ${loading ? "opacity-50 cursor-not-allowed" : ""}`} 
+                disabled={loading}
+              >
+                {loading ? "Embarking..." : "Begin Your Journey"}
+              </button>
+              
+              <p 
+                style={{ 
+                  textAlign: 'center', 
+                  marginTop: '15px', 
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                  color: '#4a90e2'
+                }}
+                onClick={() => setShowResendForm(true)}
+              >
+                Need to verify your email?
+              </p>
+              <p 
+                style={{ 
+                  textAlign: 'center', 
+                  marginTop: '15px', 
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                  color: '#4a90e2'
+                }}
+              >
+                <Link to="/register" style={{ color: '#4a90e2' }}>Need to register an account?</Link>
+              </p>
+            </form>
+          </>
+        )}
       </div>
     </div>
   );

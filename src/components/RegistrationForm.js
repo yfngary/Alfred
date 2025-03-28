@@ -1,15 +1,14 @@
-import React, { useState } from "react";
+import React, { useState, useMemo, memo } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import axios from "../utils/axiosConfig";
+import "../styles/login.css"; // Use same styles as login page
 import {
-  Container,
   Box,
   Typography,
   TextField,
   Button,
   Checkbox,
   FormControlLabel,
-  Paper,
   Avatar,
   CircularProgress,
   Alert,
@@ -24,6 +23,153 @@ import {
   CloudUpload as UploadIcon,
   HowToReg as RegisterIcon
 } from "@mui/icons-material";
+
+// Memoized star component to prevent re-rendering
+const Star = memo(({ top, left, size, delay }) => (
+  <div
+    className="star"
+    style={{
+      top,
+      left,
+      width: size,
+      height: size,
+      animationDelay: delay
+    }}
+  ></div>
+));
+
+// Memoized floating element
+const FloatingElement = memo(({ top, left, size, delay }) => (
+  <div 
+    style={{
+      position: 'absolute',
+      width: `${20 + parseInt(size) * 10}px`,
+      height: `${20 + parseInt(size) * 10}px`,
+      borderRadius: '50%',
+      background: `rgba(255, 255, 255, ${0.1 + parseInt(delay) * 0.05})`,
+      top,
+      left,
+      animation: `float ${5 + parseInt(delay) * 3}s ease-in-out infinite alternate`,
+      animationDelay: delay,
+      zIndex: 1
+    }}
+  ></div>
+));
+
+// Memoized airplane component
+const Airplane = memo(() => (
+  <div 
+    className="airplane"
+    style={{
+      position: 'absolute',
+      width: '50px',
+      height: '50px',
+      zIndex: 2,
+      animation: 'fly 20s linear infinite',
+      transformOrigin: 'center',
+    }}
+  >
+    {/* Airplane trail effect */}
+    <div className="airplane-trail" style={{
+      position: 'absolute',
+      width: '60px',
+      height: '1px',
+      background: 'linear-gradient(to left, rgba(255,255,255,0.5), rgba(255,255,255,0))',
+      right: '45px',
+      top: '50%',
+      transform: 'translateY(-50%)',
+    }}></div>
+    
+    <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M2.5 19.5L21.5 12L2.5 4.5L6.5 12L2.5 19.5Z" fill="white" stroke="#4a90e2" strokeWidth="0.5"/>
+      <path d="M6.5 12L12 14.5" stroke="#4a90e2" strokeWidth="0.5"/>
+    </svg>
+  </div>
+));
+
+// Memoized animated background
+const AnimatedBackground = memo(({ stars }) => (
+  <div className="animated-background">
+    {/* Twinkling stars */}
+    {stars.map(star => (
+      <Star 
+        key={star.id}
+        top={star.top}
+        left={star.left}
+        size={star.size}
+        delay={star.delay}
+      />
+    ))}
+  
+    {/* Path for the airplane */}
+    <div 
+      style={{
+        position: 'absolute',
+        top: '50%',
+        left: '0',
+        width: '100%',
+        height: '1px',
+        borderTop: '1px dashed rgba(255, 255, 255, 0.1)',
+        zIndex: 1
+      }}
+    ></div>
+    
+    {/* Animated airplane */}
+    <Airplane />
+    
+    {/* Add some floating elements for depth */}
+    {stars.slice(0, 8).map((star, i) => (
+      <FloatingElement 
+        key={`float-${i}`}
+        top={star.top}
+        left={star.left}
+        size={star.size}
+        delay={star.delay}
+      />
+    ))}
+    
+    {/* Add custom CSS animation for the airplane */}
+    <style>
+      {`
+        @keyframes fly {
+          0% {
+            transform: translate(-60px, 30vh) rotate(15deg);
+          }
+          10% {
+            transform: translate(10vw, 25vh) rotate(5deg);
+          }
+          20% {
+            transform: translate(20vw, 35vh) rotate(-5deg);
+          }
+          30% {
+            transform: translate(30vw, 20vh) rotate(10deg);
+          }
+          40% {
+            transform: translate(40vw, 25vh) rotate(0deg);
+          }
+          50% {
+            transform: translate(50vw, 35vh) rotate(-8deg);
+          }
+          60% {
+            transform: translate(60vw, 30vh) rotate(5deg);
+          }
+          70% {
+            transform: translate(70vw, 20vh) rotate(12deg);
+          }
+          80% {
+            transform: translate(80vw, 28vh) rotate(-2deg);
+          }
+          90% {
+            transform: translate(90vw, 32vh) rotate(8deg);
+          }
+          100% {
+            transform: translate(110vw, 25vh) rotate(0deg);
+          }
+        }
+      `}
+    </style>
+  </div>
+));
 
 export default function RegistrationForm() {
   const navigate = useNavigate();
@@ -45,6 +191,25 @@ export default function RegistrationForm() {
   const [message, setMessage] = useState("");
   const [isRegistered, setIsRegistered] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+  
+  // Generate random stars only once and memoize them
+  const stars = useMemo(() => {
+    const generatedStars = [];
+    const starCount = 50; // Adjust the number of stars as needed
+    
+    for (let i = 0; i < starCount; i++) {
+      generatedStars.push({
+        id: i,
+        top: `${Math.random() * 100}%`,
+        left: `${Math.random() * 100}%`,
+        size: `${Math.random() * 2 + 1}px`,
+        delay: `${Math.random() * 2}s`
+      });
+    }
+    
+    return generatedStars;
+  }, []);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -108,6 +273,7 @@ export default function RegistrationForm() {
     if (validate()) {
       setLoading(true);
       setMessage("");
+      setSuccessMessage("");
 
       const formDataToSend = new FormData();
       Object.keys(formData).forEach((key) => {
@@ -128,69 +294,15 @@ export default function RegistrationForm() {
         
         console.log('Registration response:', response.data);
         
-        // Registration successful, now log in automatically
-        try {
-          console.log('Automatically logging in with:', formData.email);
-          const loginResponse = await axios.post('/api/auth/login', {
-            email: formData.email,
-            password: formData.password
-          });
-          
-          console.log('Login response:', loginResponse.data);
-          const { token, user } = loginResponse.data;
-          
-          if (!token) {
-            throw new Error('No token received from login');
-          }
-          
-          // Store token and user data
-          localStorage.setItem('token', token);
-          localStorage.setItem('user', JSON.stringify(user));
-          
-          // Update axios default headers with the new token
-          axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-          console.log('Token set in localStorage and axios headers');
-          
-          setIsRegistered(true);
-          
-          // If there's an invite code, join the trip
-          if (inviteCode) {
-            try {
-              console.log('Attempting to join trip with code:', inviteCode);
-              const joinResponse = await axios.post(`/api/trips/join/${inviteCode}`);
-              console.log('Join trip response:', joinResponse.data);
-              
-              // Redirect to the trip page after joining
-              setTimeout(() => {
-                // Check if the response has tripId in the expected location
-                const tripId = joinResponse.data.trip?._id || joinResponse.data.tripId;
-                
-                if (tripId) {
-                  console.log('Navigating to trip with ID:', tripId);
-                  navigate(`/trips/${tripId}`);
-                } else {
-                  console.error('No tripId found in join response:', joinResponse.data);
-                  navigate('/');
-                }
-              }, 2000);
-              return;
-            } catch (joinError) {
-              console.error('Error joining trip:', joinError.response || joinError);
-              setMessage("Successfully registered but couldn't join the trip. You can try joining again later.");
-            }
-          }
-          
-          // If no invite code or joining failed, redirect to home
-          setTimeout(() => {
-            navigate('/');
-          }, 2000);
-        } catch (loginError) {
-          console.error('Auto-login error:', loginError.response || loginError);
-          setMessage("Registration successful, but couldn't log in automatically. Please log in manually.");
-          setTimeout(() => {
-            navigate('/login');
-          }, 2000);
-        }
+        // Set success message and registered state
+        setIsRegistered(true);
+        setSuccessMessage(response.data.message || "Registration successful! Please check your email to verify your account.");
+        
+        // Redirect to login page after a delay
+        setTimeout(() => {
+          navigate('/login');
+        }, 5000);
+        
       } catch (error) {
         console.error('Registration error:', error.response || error);
         setMessage(error.response?.data?.error || "Registration failed.");
@@ -208,219 +320,223 @@ export default function RegistrationForm() {
 
   if (isRegistered) {
     return (
-      <Container maxWidth="sm">
-        <Box sx={{ mt: 8, textAlign: 'center' }}>
+      <div className="login-page-wrapper">
+        <AnimatedBackground stars={stars} />
+        <div className="login-container" style={{ maxWidth: "500px" }}>
+          <h2>Registration Complete</h2>
           <Alert severity="success" sx={{ mb: 2 }}>
-            {inviteCode 
-              ? "Registration successful! Joining trip..."
-              : "Registration successful! Redirecting to home page..."}
+            {successMessage || "Registration successful! Please check your email to verify your account."}
           </Alert>
-          <CircularProgress />
-        </Box>
-      </Container>
+          <Typography sx={{ color: 'white', mb: 2, textAlign: 'center' }}>
+            You will be redirected to the login page in a few seconds.
+          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+            <CircularProgress sx={{ color: 'white' }} />
+          </Box>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Container maxWidth="sm">
-      <Box
-        sx={{
-          marginTop: 8,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-        }}
-      >
-        <Paper
-          elevation={3}
-          sx={{
-            p: 4,
-            width: '100%',
-            borderRadius: 2,
-            background: 'linear-gradient(to bottom, #ffffff, #f8f9fa)',
-          }}
-        >
-          <Box sx={{ mb: 3, textAlign: 'center' }}>
-            <Avatar
-              sx={{
-                m: '0 auto',
-                mb: 2,
-                bgcolor: 'primary.main',
-                width: 56,
-                height: 56,
+    <div className="login-page-wrapper">
+      <AnimatedBackground stars={stars} />
+      
+      <div className="login-container" style={{ maxWidth: "500px", overflowY: "auto", maxHeight: "90vh" }}>
+        <h2>Join the Adventure</h2>
+        
+        <Alert severity="info" sx={{ mb: 2 }}>
+          After registration, you will need to verify your email address before you can log in.
+        </Alert>
+
+        {message && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {message}
+          </Alert>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="mb-4">
+            <input
+              type="text"
+              name="username"
+              placeholder="Username"
+              value={formData.username}
+              onChange={handleUsernameChange}
+              className={`login-input ${errors.username ? "border-red-500" : ""}`}
+              disabled={loading}
+            />
+            {errors.username && (
+              <p className="text-red-500 text-sm" style={{ marginTop: '5px', fontSize: '0.8rem' }}>
+                {errors.username}
+              </p>
+            )}
+          </div>
+
+          <div className="mb-4">
+            <input
+              type="text"
+              name="name"
+              placeholder="Full Name"
+              value={formData.name}
+              onChange={handleChange}
+              className={`login-input ${errors.name ? "border-red-500" : ""}`}
+              disabled={loading}
+            />
+            {errors.name && (
+              <p className="text-red-500 text-sm" style={{ marginTop: '5px', fontSize: '0.8rem' }}>
+                {errors.name}
+              </p>
+            )}
+          </div>
+
+          <div className="mb-4">
+            <input
+              type="email"
+              name="email"
+              placeholder="Email"
+              value={formData.email}
+              onChange={handleChange}
+              className={`login-input ${errors.email ? "border-red-500" : ""}`}
+              disabled={loading}
+            />
+            {errors.email && (
+              <p className="text-red-500 text-sm" style={{ marginTop: '5px', fontSize: '0.8rem' }}>
+                {errors.email}
+              </p>
+            )}
+          </div>
+
+          <div className="mb-4" style={{ position: 'relative' }}>
+            <input
+              type={showPassword ? "text" : "password"}
+              name="password"
+              placeholder="Password"
+              value={formData.password}
+              onChange={handleChange}
+              className={`login-input ${errors.password ? "border-red-500" : ""}`}
+              disabled={loading}
+            />
+            <span 
+              style={{ 
+                position: 'absolute', 
+                right: '10px', 
+                top: '50%', 
+                transform: 'translateY(-50%)',
+                cursor: 'pointer',
+                color: 'white'
               }}
+              onClick={() => setShowPassword(!showPassword)}
             >
-              <RegisterIcon />
-            </Avatar>
-            <Typography component="h1" variant="h4" gutterBottom>
-              Welcome to Alfred
-            </Typography>
-            <Typography variant="h6" color="text.secondary" gutterBottom>
-              Create your account
-            </Typography>
-          </Box>
+              {showPassword ? "Hide" : "Show"}
+            </span>
+            {errors.password && (
+              <p className="text-red-500 text-sm" style={{ marginTop: '5px', fontSize: '0.8rem' }}>
+                {errors.password}
+              </p>
+            )}
+          </div>
 
-          {message && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {message}
-            </Alert>
-          )}
+          <div className="mb-4">
+            <input
+              type="tel"
+              name="phone"
+              placeholder="Phone (Optional)"
+              value={formData.phone}
+              onChange={handleChange}
+              className="login-input"
+              disabled={loading}
+            />
+          </div>
 
-          <form onSubmit={handleSubmit}>
-            <Stack spacing={2}>
-              <TextField
-                fullWidth
-                label="Username"
-                name="username"
-                value={formData.username}
-                onChange={handleUsernameChange}
-                error={!!errors.username}
-                helperText={errors.username}
-                required
-              />
-
-              <TextField
-                fullWidth
-                label="Full Name"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                error={!!errors.name}
-                helperText={errors.name}
-                required
-              />
-
-              <TextField
-                fullWidth
-                label="Email"
-                name="email"
-                type="email"
-                value={formData.email}
-                onChange={handleChange}
-                error={!!errors.email}
-                helperText={errors.email}
-                required
-              />
-
-              <TextField
-                fullWidth
-                label="Password"
-                name="password"
-                type={showPassword ? "text" : "password"}
-                value={formData.password}
-                onChange={handleChange}
-                error={!!errors.password}
-                helperText={errors.password}
-                required
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton
-                        onClick={() => setShowPassword(!showPassword)}
-                        edge="end"
-                      >
-                        {showPassword ? <VisibilityOff /> : <Visibility />}
-                      </IconButton>
-                    </InputAdornment>
-                  ),
-                }}
-              />
-
-              <TextField
-                fullWidth
-                label="Phone (Optional)"
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-              />
-
-              <Box sx={{ mt: 2 }}>
-                {formData.profilePicture && (
-                  <Box sx={{ mb: 2, textAlign: 'center' }}>
-                    <Avatar
-                      src={URL.createObjectURL(formData.profilePicture)}
-                      sx={{ width: 100, height: 100, margin: '0 auto' }}
-                    />
-                  </Box>
-                )}
-                
-                <Button
-                  component="label"
-                  variant="outlined"
-                  startIcon={<UploadIcon />}
-                  fullWidth
-                >
-                  Upload Profile Picture
-                  <input
-                    type="file"
-                    hidden
-                    name="profilePicture"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                  />
-                </Button>
-              </Box>
-
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    name="agreeToTerms"
-                    checked={formData.agreeToTerms}
-                    onChange={handleChange}
-                    color="primary"
-                  />
-                }
-                label={
-                  <Typography variant="body2">
-                    I agree to the{" "}
-                    <MuiLink href="#" underline="hover">
-                      Terms of Service
-                    </MuiLink>{" "}
-                    and{" "}
-                    <MuiLink href="#" underline="hover">
-                      Privacy Policy
-                    </MuiLink>
-                  </Typography>
-                }
-              />
-              {errors.agreeToTerms && (
-                <Typography color="error" variant="caption">
-                  {errors.agreeToTerms}
-                </Typography>
+          <div className="mb-4">
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 2 }}>
+              {formData.profilePicture && (
+                <Avatar
+                  src={URL.createObjectURL(formData.profilePicture)}
+                  sx={{ width: 80, height: 80, mb: 1 }}
+                />
               )}
-
+              
               <Button
-                type="submit"
-                fullWidth
-                variant="contained"
-                size="large"
-                disabled={loading}
-                sx={{
-                  mt: 2,
-                  height: 48,
-                  background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
-                  boxShadow: '0 3px 5px 2px rgba(33, 203, 243, .3)',
+                component="label"
+                variant="outlined"
+                startIcon={<UploadIcon />}
+                sx={{ 
+                  color: 'white', 
+                  borderColor: 'rgba(255,255,255,0.3)',
+                  '&:hover': {
+                    borderColor: 'white'
+                  }
                 }}
               >
-                {loading ? (
-                  <CircularProgress size={24} color="inherit" />
-                ) : (
-                  "Register"
-                )}
+                Upload Profile Picture
+                <input
+                  type="file"
+                  hidden
+                  name="profilePicture"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                />
               </Button>
+            </Box>
+          </div>
 
-              <Box sx={{ mt: 2, textAlign: 'center' }}>
-                <Typography variant="body2" color="text.secondary">
-                  Already have an account?{" "}
-                  <MuiLink component={Link} to="/login" underline="hover">
-                    Login here
+          <div className="mb-4">
+            <FormControlLabel
+              control={
+                <Checkbox
+                  name="agreeToTerms"
+                  checked={formData.agreeToTerms}
+                  onChange={handleChange}
+                  sx={{ color: 'white', '&.Mui-checked': { color: '#4a90e2' } }}
+                />
+              }
+              label={
+                <Typography sx={{ color: 'white', fontSize: '0.9rem' }}>
+                  I agree to the{" "}
+                  <MuiLink href="#" sx={{ color: '#4a90e2' }}>
+                    Terms of Service
+                  </MuiLink>{" "}
+                  and{" "}
+                  <MuiLink href="#" sx={{ color: '#4a90e2' }}>
+                    Privacy Policy
                   </MuiLink>
                 </Typography>
-              </Box>
-            </Stack>
-          </form>
-        </Paper>
-      </Box>
-    </Container>
+              }
+            />
+            {errors.agreeToTerms && (
+              <p className="text-red-500 text-sm" style={{ marginTop: '5px', fontSize: '0.8rem' }}>
+                {errors.agreeToTerms}
+              </p>
+            )}
+          </div>
+
+          <button
+            type="submit"
+            className={`login-button ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
+            disabled={loading}
+          >
+            {loading ? (
+              <CircularProgress size={24} sx={{ color: 'white' }} />
+            ) : (
+              "Begin Your Journey"
+            )}
+          </button>
+
+          <p 
+            style={{ 
+              textAlign: 'center', 
+              marginTop: '15px', 
+              cursor: 'pointer',
+              textDecoration: 'underline',
+              color: '#4a90e2'
+            }}
+          >
+            <Link to="/login" style={{ color: '#4a90e2' }}>Already have an account? Log in</Link>
+          </p>
+        </form>
+      </div>
+    </div>
   );
 }

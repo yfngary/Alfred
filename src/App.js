@@ -28,6 +28,8 @@ import { TripProvider } from "./context/TripContext";
 import GuestManagement from "./components/GuestManagement";
 import LodgingManagement from "./components/LodgingManagement";
 import { UserProvider, useUser } from "./context/UserContext";
+import VerifyEmailPage from "./components/VerifyEmailPage";
+import ResetPasswordPage from "./components/ResetPasswordPage";
 
 // Create dark theme for Material UI
 const darkTheme = createTheme({
@@ -163,7 +165,11 @@ const expandedWidth = "200px";
 function Layout() {
   const location = useLocation();
   const [navOpen, setNavOpen] = React.useState(true);
-  const hideNav = location.pathname === "/login" || location.pathname === "/"; // Hide for login and registration
+  const hideNav = location.pathname === "/login" || 
+                  location.pathname === "/" || 
+                  location.pathname.startsWith("/verify-email") || 
+                  location.pathname.startsWith("/reset-password") || 
+                  location.pathname === "/register"; // Hide for login, registration, verification and reset password
 
   // Define routes
   const routes = [
@@ -262,8 +268,20 @@ function Layout() {
       element: <LoginPage />,
     },
     {
+      path: "/register",
+      element: <RegistrationForm />,
+    },
+    {
       path: "/",
       element: <LoginPage />,
+    },
+    {
+      path: "/verify-email/:token",
+      element: <VerifyEmailPage />,
+    },
+    {
+      path: "/reset-password/:token",
+      element: <ResetPasswordPage />,
     },
     {
       path: "/notifications",

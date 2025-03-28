@@ -22,7 +22,10 @@ import {
   Tab,
   Tabs,
   Alert,
-  CircularProgress
+  CircularProgress,
+  ThemeProvider,
+  createTheme,
+  useTheme
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -55,6 +58,36 @@ export default function GuestManagement({ id }) {
   const tripId = id || params.id;
   const navigate = useNavigate();
   const { refreshTrips } = useTrips();
+  const baseTheme = useTheme();
+  
+  // Create custom styles for the select menus to ensure text is visible
+  const selectTheme = createTheme({
+    ...baseTheme,
+    components: {
+      ...baseTheme.components,
+      MuiPaper: {
+        styleOverrides: {
+          root: {
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          }
+        }
+      },
+      MuiMenuItem: {
+        styleOverrides: {
+          root: {
+            color: '#ffffff',
+            '&:hover': {
+              backgroundColor: 'rgba(71, 118, 230, 0.1)',
+            },
+            '&.Mui-selected': {
+              backgroundColor: 'rgba(71, 118, 230, 0.2)',
+            },
+          }
+        }
+      },
+    }
+  });
+
   const [trip, setTrip] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -352,6 +385,258 @@ export default function GuestManagement({ id }) {
     }
   };
 
+  const renderGuestForm = () => (
+    <Paper 
+      sx={{ 
+        p: 3, 
+        backgroundColor: 'rgba(0, 0, 0, 0.4)',
+        backdropFilter: 'blur(10px)',
+        
+        borderRadius: 2,
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+      }}
+    >
+      <Typography variant="h6" gutterBottom sx={{ color: 'primary.main', fontWeight: 'bold' }}>
+        {editingGuest ? 'Edit Guest' : 'Add New Guest'}
+      </Typography>
+      <Stack spacing={2}>
+        <TextField
+          fullWidth
+          label="Name"
+          value={newGuest.name}
+          onChange={(e) => setNewGuest(prev => ({ ...prev, name: e.target.value }))}
+          InputLabelProps={{ shrink: true }}
+          InputProps={{ style: { color: 'white' } }}
+        />
+        <TextField
+          fullWidth
+          label="Email"
+          type="email"
+          value={newGuest.email}
+          onChange={(e) => setNewGuest(prev => ({ ...prev, email: e.target.value }))}
+          InputLabelProps={{ shrink: true }}
+          InputProps={{ style: { color: 'white' } }}
+        />
+        <TextField
+          fullWidth
+          label="Phone"
+          value={newGuest.phone}
+          onChange={(e) => setNewGuest(prev => ({ ...prev, phone: e.target.value }))}
+          InputLabelProps={{ shrink: true }}
+          InputProps={{ style: { color: 'white' } }}
+        />
+        <ThemeProvider theme={selectTheme}>
+          <FormControl fullWidth>
+            <InputLabel sx={{ color: 'text.secondary' }}>Type</InputLabel>
+            <Select
+              value={newGuest.type}
+              label="Type"
+              onChange={(e) => setNewGuest(prev => ({ ...prev, type: e.target.value }))}
+              sx={{ color: 'white' }}
+            >
+              <MenuItem value="adult">Adult</MenuItem>
+              <MenuItem value="child">Child</MenuItem>
+            </Select>
+          </FormControl>
+        </ThemeProvider>
+        <Button
+          variant="contained"
+          onClick={editingGuest ? handleUpdateGuest : handleAddGuest}
+          startIcon={editingGuest ? <EditIcon /> : <AddIcon />}
+          disabled={!newGuest.name.trim()}
+          sx={{ 
+            borderRadius: 2,
+            fontWeight: 600,
+            textTransform: 'none',
+            backgroundImage: 'linear-gradient(90deg, #4776E6 0%, #8E54E9 100%)',
+            boxShadow: '0 4px 10px rgba(0, 0, 0, 0.3)',
+            '&:hover': {
+              backgroundImage: 'linear-gradient(90deg, #8E54E9 0%, #4776E6 100%)',
+              transform: 'translateY(-2px)',
+              boxShadow: '0 10px 20px rgba(0, 0, 0, 0.3)',
+            },
+            '&.Mui-disabled': {
+              backgroundImage: 'none',
+              backgroundColor: 'rgba(255, 255, 255, 0.12)',
+            }
+          }}
+        >
+          {editingGuest ? 'Update Guest' : 'Add Guest'}
+        </Button>
+        {editingGuest && (
+          <Button
+            variant="outlined"
+            onClick={() => {
+              setEditingGuest(null);
+              setNewGuest({
+                name: '',
+                email: '',
+                phone: '',
+                type: 'adult'
+              });
+            }}
+            sx={{ 
+              borderRadius: 2,
+              fontWeight: 600,
+              textTransform: 'none',
+              borderColor: 'rgba(255, 255, 255, 0.3)',
+              color: 'white',
+              '&:hover': {
+                borderColor: 'rgba(255, 255, 255, 0.5)',
+                backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              }
+            }}
+          >
+            Cancel Edit
+          </Button>
+        )}
+      </Stack>
+    </Paper>
+  );
+
+  const renderGroupForm = () => (
+    <Paper 
+      sx={{ 
+        p: 3, 
+        backgroundColor: 'rgba(0, 0, 0, 0.4)',
+        backdropFilter: 'blur(10px)',
+        borderRadius: 2,
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+      }}
+    >
+      <Typography variant="h6" gutterBottom sx={{ color: 'primary.main', fontWeight: 'bold' }}>
+        Create New Group
+      </Typography>
+      <Stack spacing={2}>
+        <TextField
+          fullWidth
+          label="Group Name"
+          value={newGroup.name}
+          onChange={(e) => setNewGroup(prev => ({ ...prev, name: e.target.value }))}
+          InputLabelProps={{ shrink: true }}
+          InputProps={{ style: { color: 'white' } }}
+        />
+        <Button
+          variant="contained"
+          onClick={handleAddGroup}
+          startIcon={<AddIcon />}
+          disabled={!newGroup.name.trim()}
+          sx={{ 
+            borderRadius: 2,
+            fontWeight: 600,
+            textTransform: 'none',
+            backgroundImage: 'linear-gradient(90deg, #4776E6 0%, #8E54E9 100%)',
+            boxShadow: '0 4px 10px rgba(0, 0, 0, 0.3)',
+            '&:hover': {
+              backgroundImage: 'linear-gradient(90deg, #8E54E9 0%, #4776E6 100%)',
+              transform: 'translateY(-2px)',
+              boxShadow: '0 10px 20px rgba(0, 0, 0, 0.3)',
+            },
+            '&.Mui-disabled': {
+              backgroundImage: 'none',
+              backgroundColor: 'rgba(255, 255, 255, 0.12)',
+            }
+          }}
+        >
+          Create Group
+        </Button>
+      </Stack>
+      
+      {/* Add Guest to Group Section */}
+      {groups.length > 0 && (
+        <Box sx={{ mt: 4 }}>
+          <Typography variant="h6" gutterBottom sx={{ color: 'primary.main', fontWeight: 'bold' }}>
+            Add Guest to Group
+          </Typography>
+          <Stack spacing={2}>
+            <ThemeProvider theme={selectTheme}>
+              <FormControl fullWidth>
+                <InputLabel sx={{ color: 'text.secondary' }}>Select Group</InputLabel>
+                <Select
+                  value={selectedGroupId}
+                  label="Select Group"
+                  onChange={(e) => setSelectedGroupId(e.target.value)}
+                  sx={{ color: 'white' }}
+                >
+                  {groups.map(group => (
+                    <MenuItem key={group._id} value={group._id}>
+                      {group.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              
+              <FormControl fullWidth disabled={!selectedGroupId}>
+                <InputLabel sx={{ color: 'text.secondary' }}>Select Guest</InputLabel>
+                <Select
+                  value={selectedGuestId}
+                  label="Select Guest"
+                  onChange={(e) => setSelectedGuestId(e.target.value)}
+                  sx={{ color: 'white' }}
+                >
+                  {guests.map(guest => (
+                    <MenuItem key={guest._id} value={guest._id}>
+                      {guest.name} ({guest.type})
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </ThemeProvider>
+            
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button
+                variant="outlined"
+                color="primary"
+                disabled={!selectedGroupId || !selectedGuestId}
+                onClick={() => handleAddGuestToGroup('level1')}
+                fullWidth
+                sx={{ 
+                  borderRadius: 2,
+                  fontWeight: 600,
+                  textTransform: 'none',
+                  color: 'white',
+                  borderColor: 'rgba(71, 118, 230, 0.5)',
+                  '&:hover': {
+                    borderColor: 'primary.main',
+                    backgroundColor: 'rgba(71, 118, 230, 0.1)',
+                  },
+                  '&.Mui-disabled': {
+                    borderColor: 'rgba(255, 255, 255, 0.2)',
+                  }
+                }}
+              >
+                Add as Adult
+              </Button>
+              <Button
+                variant="outlined"
+                color="secondary"
+                disabled={!selectedGroupId || !selectedGuestId}
+                onClick={() => handleAddGuestToGroup('level2')}
+                fullWidth
+                sx={{ 
+                  borderRadius: 2,
+                  fontWeight: 600,
+                  textTransform: 'none',
+                  color: 'white',
+                  borderColor: 'rgba(142, 84, 233, 0.5)',
+                  '&:hover': {
+                    borderColor: 'secondary.main',
+                    backgroundColor: 'rgba(142, 84, 233, 0.1)',
+                  },
+                  '&.Mui-disabled': {
+                    borderColor: 'rgba(255, 255, 255, 0.2)',
+                  }
+                }}
+              >
+                Add as Child
+              </Button>
+            </Box>
+          </Stack>
+        </Box>
+      )}
+    </Paper>
+  );
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
@@ -362,11 +647,18 @@ export default function GuestManagement({ id }) {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Box sx={{ mb: 4, display: 'flex', alignItems: 'center', gap: 2, color: 'black' }}>
-        <IconButton onClick={() => navigate(`/trips/${tripId}`)}>
+      <Box sx={{ mb: 4, display: 'flex', alignItems: 'center', gap: 2 }}>
+        <IconButton 
+          onClick={() => navigate(`/trips/${tripId}`)}
+          sx={{ 
+            color: 'primary.main', 
+            backgroundColor: 'rgba(255, 255, 255, 0.05)',
+            '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.1)' }
+          }}
+        >
           <ArrowBackIcon />
         </IconButton>
-        <Typography variant="h4">
+        <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'white' }}>
           Manage Guests - {trip?.tripName}
         </Typography>
       </Box>
@@ -377,8 +669,20 @@ export default function GuestManagement({ id }) {
         </Alert>
       )}
 
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-        <Tabs value={currentTab} onChange={(e, newValue) => setCurrentTab(newValue)}>
+      <Box sx={{ borderBottom: 1, borderColor: 'rgba(255, 255, 255, 0.1)', mb: 3 }}>
+        <Tabs 
+          value={currentTab} 
+          onChange={(e, newValue) => setCurrentTab(newValue)}
+          sx={{ 
+            '& .MuiTab-root': { 
+              color: 'text.secondary',
+              '&.Mui-selected': { 
+                color: 'primary.main',
+              }
+            },
+            '& .MuiTabs-indicator': { backgroundColor: 'primary.main' }
+          }}
+        >
           <Tab label="Guests" icon={<PersonIcon />} iconPosition="start" />
           <Tab label="Groups" icon={<GroupIcon />} iconPosition="start" />
         </Tabs>
@@ -388,72 +692,20 @@ export default function GuestManagement({ id }) {
         // Guests Tab
         <Grid container spacing={3}>
           <Grid item xs={12} md={4}>
-            <Paper sx={{ p: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                {editingGuest ? 'Edit Guest' : 'Add New Guest'}
-              </Typography>
-              <Stack spacing={2}>
-                <TextField
-                  fullWidth
-                  label="Name"
-                  value={newGuest.name}
-                  onChange={(e) => setNewGuest(prev => ({ ...prev, name: e.target.value }))}
-                />
-                <TextField
-                  fullWidth
-                  label="Email"
-                  type="email"
-                  value={newGuest.email}
-                  onChange={(e) => setNewGuest(prev => ({ ...prev, email: e.target.value }))}
-                />
-                <TextField
-                  fullWidth
-                  label="Phone"
-                  value={newGuest.phone}
-                  onChange={(e) => setNewGuest(prev => ({ ...prev, phone: e.target.value }))}
-                />
-                <FormControl fullWidth>
-                  <InputLabel>Type</InputLabel>
-                  <Select
-                    value={newGuest.type}
-                    label="Type"
-                    onChange={(e) => setNewGuest(prev => ({ ...prev, type: e.target.value }))}
-                  >
-                    <MenuItem value="adult">Adult</MenuItem>
-                    <MenuItem value="child">Child</MenuItem>
-                  </Select>
-                </FormControl>
-                <Button
-                  variant="contained"
-                  onClick={editingGuest ? handleUpdateGuest : handleAddGuest}
-                  startIcon={editingGuest ? <EditIcon /> : <AddIcon />}
-                  disabled={!newGuest.name.trim()}
-                >
-                  {editingGuest ? 'Update Guest' : 'Add Guest'}
-                </Button>
-                {editingGuest && (
-                  <Button
-                    variant="outlined"
-                    onClick={() => {
-                      setEditingGuest(null);
-                      setNewGuest({
-                        name: '',
-                        email: '',
-                        phone: '',
-                        type: 'adult'
-                      });
-                    }}
-                  >
-                    Cancel Edit
-                  </Button>
-                )}
-              </Stack>
-            </Paper>
+            {renderGuestForm()}
           </Grid>
 
           <Grid item xs={12} md={8}>
-            <Paper sx={{ p: 3 }}>
-              <Typography variant="h6" gutterBottom>
+            <Paper 
+              sx={{ 
+                p: 3, 
+                backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                backdropFilter: 'blur(10px)',
+                borderRadius: 2,
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+              }}
+            >
+              <Typography variant="h6" gutterBottom sx={{ color: 'primary.main', fontWeight: 'bold' }}>
                 Guest List ({guests.length})
               </Typography>
               <List>
@@ -463,16 +715,22 @@ export default function GuestManagement({ id }) {
                     sx={{
                       mb: 1,
                       border: '1px solid',
-                      borderColor: 'divider',
-                      borderRadius: 1,
-                      bgcolor: guest.type === 'child' ? 'rgba(156, 39, 176, 0.05)' : 'transparent'
+                      borderColor: 'rgba(255, 255, 255, 0.1)',
+                      borderRadius: 2,
+                      bgcolor: guest.type === 'child' ? 'rgba(142, 84, 233, 0.1)' : 'rgba(71, 118, 230, 0.05)',
+                      transition: 'all 0.3s ease',
+                      '&:hover': {
+                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                        transform: 'translateY(-2px)',
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                      }
                     }}
                   >
                     <Avatar sx={{ bgcolor: stringToColor(guest.name), mr: 2 }}>
                       {guest.name.charAt(0)}
                     </Avatar>
                     <Box sx={{ flexGrow: 1 }}>
-                      <Typography variant="subtitle1">
+                      <Typography variant="subtitle1" sx={{ color: 'white' }}>
                         {guest.name}
                         <Chip
                           size="small"
@@ -481,18 +739,37 @@ export default function GuestManagement({ id }) {
                           color={guest.type === 'child' ? 'secondary' : 'primary'}
                         />
                       </Typography>
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography variant="body2" color="rgba(255, 255, 255, 0.7)">
                         {guest.email} {guest.phone && `• ${guest.phone}`}
                       </Typography>
                     </Box>
-                    <IconButton onClick={() => handleEditGuest(guest)}>
+                    <IconButton 
+                      onClick={() => handleEditGuest(guest)}
+                      sx={{ 
+                        color: 'primary.main',
+                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                        '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.1)' }
+                      }}
+                    >
                       <EditIcon />
                     </IconButton>
-                    <IconButton onClick={() => handleRemoveGuest(guest._id)} color="error">
+                    <IconButton 
+                      onClick={() => handleRemoveGuest(guest._id)} 
+                      color="error"
+                      sx={{ 
+                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                        '&:hover': { backgroundColor: 'rgba(244, 67, 54, 0.1)' }
+                      }}
+                    >
                       <DeleteIcon />
                     </IconButton>
                   </ListItem>
                 ))}
+                {guests.length === 0 && (
+                  <Typography variant="body1" color="rgba(255, 255, 255, 0.7)" align="center" sx={{ py: 4 }}>
+                    No guests added yet. Add guests to manage your trip attendees.
+                  </Typography>
+                )}
               </List>
             </Paper>
           </Grid>
@@ -501,93 +778,20 @@ export default function GuestManagement({ id }) {
         // Groups Tab
         <Grid container spacing={3}>
           <Grid item xs={12} md={4}>
-            <Paper sx={{ p: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                Create New Group
-              </Typography>
-              <Stack spacing={2}>
-                <TextField
-                  fullWidth
-                  label="Group Name"
-                  value={newGroup.name}
-                  onChange={(e) => setNewGroup(prev => ({ ...prev, name: e.target.value }))}
-                />
-                <Button
-                  variant="contained"
-                  onClick={handleAddGroup}
-                  startIcon={<AddIcon />}
-                  disabled={!newGroup.name.trim()}
-                >
-                  Create Group
-                </Button>
-              </Stack>
-              
-              {/* Add Guest to Group Section */}
-              {groups.length > 0 && (
-                <Box sx={{ mt: 4 }}>
-                  <Typography variant="h6" gutterBottom>
-                    Add Guest to Group
-                  </Typography>
-                  <Stack spacing={2}>
-                    <FormControl fullWidth>
-                      <InputLabel>Select Group</InputLabel>
-                      <Select
-                        value={selectedGroupId}
-                        label="Select Group"
-                        onChange={(e) => setSelectedGroupId(e.target.value)}
-                      >
-                        {groups.map(group => (
-                          <MenuItem key={group._id} value={group._id}>
-                            {group.name}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                    
-                    <FormControl fullWidth disabled={!selectedGroupId}>
-                      <InputLabel>Select Guest</InputLabel>
-                      <Select
-                        value={selectedGuestId}
-                        label="Select Guest"
-                        onChange={(e) => setSelectedGuestId(e.target.value)}
-                      >
-                        {guests.map(guest => (
-                          <MenuItem key={guest._id} value={guest._id}>
-                            {guest.name} ({guest.type})
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                    
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                      <Button
-                        variant="outlined"
-                        color="primary"
-                        disabled={!selectedGroupId || !selectedGuestId}
-                        onClick={() => handleAddGuestToGroup('level1')}
-                        fullWidth
-                      >
-                        Add as Adult
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        color="secondary"
-                        disabled={!selectedGroupId || !selectedGuestId}
-                        onClick={() => handleAddGuestToGroup('level2')}
-                        fullWidth
-                      >
-                        Add as Child
-                      </Button>
-                    </Box>
-                  </Stack>
-                </Box>
-              )}
-            </Paper>
+            {renderGroupForm()}
           </Grid>
 
           <Grid item xs={12} md={8}>
-            <Paper sx={{ p: 3 }}>
-              <Typography variant="h6" gutterBottom>
+            <Paper 
+              sx={{ 
+                p: 3, 
+                backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                backdropFilter: 'blur(10px)',
+                borderRadius: 2,
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+              }}
+            >
+              <Typography variant="h6" gutterBottom sx={{ color: 'primary.main', fontWeight: 'bold' }}>
                 Groups ({groups.length})
               </Typography>
               {groups.map((group, index) => (
@@ -597,18 +801,28 @@ export default function GuestManagement({ id }) {
                   sx={{
                     p: 2,
                     mb: 2,
-                    border: '1px solid',
-                    borderColor: 'divider',
-                    borderRadius: 1
+                    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: 2,
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                      transform: 'translateY(-2px)',
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                    }
                   }}
                 >
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                    <Typography variant="subtitle1">
+                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'white' }}>
                       {group.name}
                     </Typography>
                     <IconButton 
                       size="small" 
                       color="error"
+                      sx={{ 
+                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                        '&:hover': { backgroundColor: 'rgba(244, 67, 54, 0.1)' }
+                      }}
                       onClick={() => {
                         setGroups(prev => prev.filter(g => g._id !== group._id));
                       }}
@@ -618,7 +832,7 @@ export default function GuestManagement({ id }) {
                   </Box>
                   <Grid container spacing={2}>
                     <Grid item xs={12} sm={6}>
-                      <Typography variant="subtitle2" color="primary" gutterBottom>
+                      <Typography variant="subtitle2" color="primary.main" gutterBottom>
                         Adults
                       </Typography>
                       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
@@ -638,18 +852,25 @@ export default function GuestManagement({ id }) {
                                 label={guestObj.name}
                                 onDelete={() => handleRemoveGuestFromGroup(group._id, 'level1', guestId)}
                                 color="primary"
+                                sx={{ 
+                                  borderRadius: 4,
+                                  '& .MuiChip-deleteIcon': {
+                                    color: 'rgba(255, 255, 255, 0.7)',
+                                    '&:hover': { color: 'white' }
+                                  }
+                                }}
                               />
                             );
                           })
                         ) : (
-                          <Typography variant="body2" color="text.secondary">
+                          <Typography variant="body2" color="rgba(255, 255, 255, 0.7)">
                             No adults in this group
                           </Typography>
                         )}
                       </Box>
                     </Grid>
                     <Grid item xs={12} sm={6}>
-                      <Typography variant="subtitle2" color="secondary" gutterBottom>
+                      <Typography variant="subtitle2" color="secondary.main" gutterBottom>
                         Children
                       </Typography>
                       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
@@ -669,11 +890,18 @@ export default function GuestManagement({ id }) {
                                 label={guestObj.name}
                                 onDelete={() => handleRemoveGuestFromGroup(group._id, 'level2', guestId)}
                                 color="secondary"
+                                sx={{ 
+                                  borderRadius: 4,
+                                  '& .MuiChip-deleteIcon': {
+                                    color: 'rgba(255, 255, 255, 0.7)',
+                                    '&:hover': { color: 'white' }
+                                  }
+                                }}
                               />
                             );
                           })
                         ) : (
-                          <Typography variant="body2" color="text.secondary">
+                          <Typography variant="body2" color="rgba(255, 255, 255, 0.7)">
                             No children in this group
                           </Typography>
                         )}
@@ -683,7 +911,7 @@ export default function GuestManagement({ id }) {
                 </Paper>
               ))}
               {groups.length === 0 && (
-                <Typography variant="body1" color="text.secondary" align="center" sx={{ py: 4 }}>
+                <Typography variant="body1" color="rgba(255, 255, 255, 0.7)" align="center" sx={{ py: 4 }}>
                   No groups created yet. Create a group to organize your guests.
                 </Typography>
               )}
@@ -696,6 +924,17 @@ export default function GuestManagement({ id }) {
         <Button
           variant="outlined"
           onClick={() => navigate(`/trips/${tripId}`)}
+          sx={{ 
+            borderRadius: 2,
+            fontWeight: 600,
+            textTransform: 'none',
+            color: 'white',
+            borderColor: 'rgba(255, 255, 255, 0.3)',
+            '&:hover': {
+              borderColor: 'rgba(255, 255, 255, 0.5)',
+              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+            }
+          }}
         >
           Cancel
         </Button>
@@ -704,6 +943,22 @@ export default function GuestManagement({ id }) {
           onClick={handleSaveChanges}
           disabled={saveLoading}
           startIcon={saveLoading ? <CircularProgress size={20} /> : null}
+          sx={{ 
+            borderRadius: 2,
+            fontWeight: 600,
+            textTransform: 'none',
+            backgroundImage: 'linear-gradient(90deg, #4776E6 0%, #8E54E9 100%)',
+            boxShadow: '0 4px 10px rgba(0, 0, 0, 0.3)',
+            '&:hover': {
+              backgroundImage: 'linear-gradient(90deg, #8E54E9 0%, #4776E6 100%)',
+              transform: 'translateY(-2px)',
+              boxShadow: '0 10px 20px rgba(0, 0, 0, 0.3)',
+            },
+            '&.Mui-disabled': {
+              backgroundImage: 'none',
+              backgroundColor: 'rgba(255, 255, 255, 0.12)',
+            }
+          }}
         >
           {saveLoading ? 'Saving...' : 'Save Changes'}
         </Button>

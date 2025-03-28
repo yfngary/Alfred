@@ -15,6 +15,11 @@ const UserSchema = new mongoose.Schema({
   profilePicture: { type: String }, // Store image URL
   friends: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   groupChats: [{ type: mongoose.Schema.Types.ObjectId, ref: "GroupChat" }], // Reference to group chats
+  isEmailVerified: { type: Boolean, default: false },
+  emailVerificationToken: { type: String },
+  emailVerificationExpires: { type: Date },
+  resetPasswordToken: { type: String },
+  resetPasswordExpires: { type: Date },
 });
 
 module.exports = mongoose.model("User", UserSchema);

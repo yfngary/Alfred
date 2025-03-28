@@ -55,15 +55,6 @@ router.post("/", authMiddleware, async (req, res) => {
       guestRelationships 
     } = req.body;
 
-    // Log the incoming data for debugging
-    console.log("Creating new trip with data:", {
-      tripName,
-      destination, 
-      location,
-      guestsCount: guests?.length,
-      relationshipsCount: guestRelationships?.length
-    });
-
     // Create a chat for the trip with just the creator initially
     const newChat = new Chat({
       members: [req.user.id],

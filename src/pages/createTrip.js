@@ -64,7 +64,6 @@ const CreateTrip = () => {
       setIsSubmitting(true);
       try {
         const token = localStorage.getItem("token");
-        console.log("🔍 Final trip submission - Starting process");
         
         // Prepare the data to send to the server
         const tripData = {
@@ -93,9 +92,6 @@ const CreateTrip = () => {
             }))
           }))
         };
-        
-        console.log("📤 Sending trip data to backend:", JSON.stringify(tripData, null, 2));
-
         const response = await fetch("http://localhost:5001/api/trips", {
           method: "POST",
           headers: { 
@@ -108,17 +104,12 @@ const CreateTrip = () => {
 
         if (response.ok) {
           const data = await response.json();
-          console.log("✅ Trip created successfully:", data);
           refreshTrips(); // Refresh trips in NavBar
           
           // Check if we have guests to invite
           if (formData.selectedInvitees && formData.selectedInvitees.length > 0 && formData.guestsToInvite) {
-            console.log("📧 Preparing to send invitations to:", formData.selectedInvitees);
-            console.log("📧 Guest data for invitations:", formData.guestsToInvite);
-            
             try {
               // Get or generate an invite code for the trip
-              console.log("🔑 Requesting invite code for trip:", data.trip._id);
               const inviteCodeResponse = await fetch(`http://localhost:5001/api/trips/${data.trip._id}/invite-code`, {
                 method: "POST",
                 headers: { 
@@ -135,18 +126,15 @@ const CreateTrip = () => {
               
               const inviteCodeData = await inviteCodeResponse.json();
               const inviteCode = inviteCodeData.inviteCode;
-              console.log("🔑 Got invite code:", inviteCode);
               
               // Create the join link
               const joinLink = `${window.location.origin}/join-trip/${inviteCode}`;
-              console.log("🔗 Created join link:", joinLink);
               
               // Update the invitation message to include the join link
               let enhancedMessage = formData.inviteMessage;
               if (!enhancedMessage.includes("Click here to join")) {
                 enhancedMessage += `\n\nClick here to join the trip: ${joinLink}`;
               }
-              console.log("📝 Enhanced invitation message:", enhancedMessage);
               
               // Prepare invitation data
               const invitationData = {
@@ -156,7 +144,6 @@ const CreateTrip = () => {
                 inviteCode: inviteCode,
                 joinLink: joinLink
               };
-              console.log("📤 Sending invitation data to backend:", JSON.stringify(invitationData, null, 2));
               
               // Send invitations for the newly created trip
               const inviteResponse = await fetch(`http://localhost:5001/api/trips/${data.trip._id}/send-invitations`, {
@@ -173,7 +160,6 @@ const CreateTrip = () => {
                 console.error("❌ Error sending invitations:", await inviteResponse.text());
               } else {
                 const inviteResult = await inviteResponse.json();
-                console.log("✅ Invitation response:", inviteResult);
               }
             } catch (inviteError) {
               console.error("❌ Exception sending invitations:", inviteError);
@@ -194,6 +180,7 @@ const CreateTrip = () => {
         setIsSubmitting(false);
       }
     } else {
+      console.log(formData.lodgings)
       setActiveStep((prevStep) => prevStep + 1);
     }
   };
@@ -266,9 +253,11 @@ const CreateTrip = () => {
         mx: "auto",
         mt: 4,
         p: 4,
-        backgroundColor: "white",
+        backgroundColor: "background.paper",
+        backdropFilter: "blur(10px)",
         borderRadius: 2,
         boxShadow: 3,
+        border: "1px solid rgba(255, 255, 255, 0.1)",
       }}
     >
       <Typography
@@ -281,7 +270,19 @@ const CreateTrip = () => {
       </Typography>
 
       {/* Stepper Navigation */}
-      <Stepper activeStep={activeStep} alternativeLabel sx={{ mb: 4 }}>
+      <Stepper 
+        activeStep={activeStep} 
+        alternativeLabel 
+        sx={{ 
+          mb: 4,
+          '& .MuiStepLabel-root .Mui-completed': {
+            color: 'secondary.main', // completed icon color
+          },
+          '& .MuiStepLabel-root .Mui-active': {
+            color: 'primary.main', // active icon color
+          }
+        }}
+      >
         {steps.map((label) => (
           <Step key={label}>
             <StepLabel sx={{ fontWeight: "medium" }}>{label}</StepLabel>
@@ -301,13 +302,18 @@ const CreateTrip = () => {
           justifyContent: "space-between",
           mt: 4,
           pt: 2,
-          borderTop: "1px solid #e0e0e0",
+          borderTop: "1px solid rgba(255, 255, 255, 0.1)",
         }}
       >
         <Button
           variant="outlined"
           onClick={handleBack}
           disabled={activeStep === 0}
+          sx={{
+            borderRadius: 2,
+            fontWeight: 600,
+            textTransform: 'none',
+          }}
         >
           Back
         </Button>
@@ -315,6 +321,18 @@ const CreateTrip = () => {
           variant="contained"
           onClick={handleNext}
           disabled={isSubmitting}
+          sx={{
+            borderRadius: 2,
+            fontWeight: 600,
+            textTransform: 'none',
+            backgroundImage: 'linear-gradient(90deg, #4776E6 0%, #8E54E9 100%)',
+            boxShadow: '0 4px 10px rgba(0, 0, 0, 0.3)',
+            '&:hover': {
+              backgroundImage: 'linear-gradient(90deg, #8E54E9 0%, #4776E6 100%)',
+              transform: 'translateY(-2px)',
+              boxShadow: '0 10px 20px rgba(0, 0, 0, 0.3)',
+            },
+          }}
         >
           {isSubmitting ? (
             <CircularProgress size={24} color="inherit" />

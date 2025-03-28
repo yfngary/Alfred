@@ -118,23 +118,23 @@ const GuestSelection = ({ formData, updateFormData, userName }) => {
         flexDirection: "column",
         gap: 1,
         p: 2,
-        color: "black",
+        color: "white",
         textAlign: "center",
       }}
     >
       {showWarning && (
-        <Alert severity="warning" sx={{ textAlign: "center", mb: 1, color: "black" }}>
+        <Alert severity="warning" sx={{ textAlign: "center", mb: 1, color: "white" }}>
           The maximum number of guests allowed is <strong>{MAX_TOTAL_GUESTS}</strong>.
         </Alert>
       )}
 
       <Typography
         variant="h6"
-        sx={{ fontWeight: "bold", textAlign: "center", mt: 1, color: "black" }}
+        sx={{ fontWeight: "bold", textAlign: "center", mt: 1, color: "white" }}
       >
         Add Guests
       </Typography>
-      <Typography variant="body1" sx={{ textAlign: "center", mb: 2, color: "black" }}>
+      <Typography variant="body1" sx={{ textAlign: "center", mb: 2, color: "white" }}>
         Please specify the number of adults and children joining your trip.
       </Typography>
 
@@ -147,8 +147,8 @@ const GuestSelection = ({ formData, updateFormData, userName }) => {
         }}
       >
         {/* Adults Section */}
-        <Box sx={{ display: "flex", flexDirection: "column", flex: 1, color: "black" }}>
-          <Typography sx={{ fontWeight: "bold", textAlign: "center", color: "black" }}>
+        <Box sx={{ display: "flex", flexDirection: "column", flex: 1, color: "white" }}>
+          <Typography sx={{ fontWeight: "bold", textAlign: "center", color: "white" }}>
             Adults
           </Typography>
           <Typography variant="body2" sx={{ color: "gray", textAlign: "center" }}>
@@ -177,9 +177,9 @@ const GuestSelection = ({ formData, updateFormData, userName }) => {
               inputProps={{
                 min: 1,
                 max: MAX_TOTAL_GUESTS - kids,
-                style: { textAlign: "center", fontSize: "14px", width: "40px", color: "black" },
+                style: { textAlign: "center", fontSize: "14px", width: "40px", color: "white" },
               }}
-              sx={{ input: { color: "black", textAlign: "center" } }}
+              sx={{ input: { color: "white", textAlign: "center" } }}
             />
             <IconButton
               onClick={() => handleGuestChange("adults", adults + 1)}
@@ -200,8 +200,8 @@ const GuestSelection = ({ formData, updateFormData, userName }) => {
         />
 
         {/* Children Section */}
-        <Box sx={{ display: "flex", flexDirection: "column", flex: 1, color: "black" }}>
-          <Typography sx={{ fontWeight: "bold", textAlign: "center", color: "black" }}>
+        <Box sx={{ display: "flex", flexDirection: "column", flex: 1, color: "white" }}>
+          <Typography sx={{ fontWeight: "bold", textAlign: "center", color: "white" }}>
             Children
           </Typography>
           <Typography variant="body2" sx={{ color: "gray", textAlign: "center" }}>
@@ -230,9 +230,9 @@ const GuestSelection = ({ formData, updateFormData, userName }) => {
               inputProps={{
                 min: 0,
                 max: MAX_TOTAL_GUESTS - adults,
-                style: { textAlign: "center", fontSize: "14px", width: "40px", color: "black" },
+                style: { textAlign: "center", fontSize: "14px", width: "40px", color: "white" },
               }}
-              sx={{ input: { color: "black", textAlign: "center" } }}
+              sx={{ input: { color: "white", textAlign: "center" } }}
             />
             <IconButton
               onClick={() => handleGuestChange("kids", kids + 1)}
@@ -244,7 +244,7 @@ const GuestSelection = ({ formData, updateFormData, userName }) => {
         </Box>
       </Box>
 
-      <Divider sx={{ my: 2, textAlign: "center", color: "black" }}>Adults</Divider>
+      <Divider sx={{ my: 2, textAlign: "center", color: "white" }}>Adults</Divider>
 
       {/* Adult Guest Input Fields */}
       {adultNames.map((guest, index) => (
@@ -256,7 +256,7 @@ const GuestSelection = ({ formData, updateFormData, userName }) => {
             alignItems: "flex-start",
             gap: 1,
             mt: 1,
-            color: "black",
+            color: "white",
           }}
         >
           <TextField
@@ -266,8 +266,8 @@ const GuestSelection = ({ formData, updateFormData, userName }) => {
             size="small"
             sx={{
               maxWidth: "180px",
-              input: { color: "black", textAlign: "center" },
-              label: { color: "black", textAlign: "center" },
+              input: { color: "white", textAlign: "center" },
+              label: { color: "white", textAlign: "center" },
             }}
             value={guest.name}
             onChange={(e) =>
@@ -293,7 +293,7 @@ const GuestSelection = ({ formData, updateFormData, userName }) => {
                     handleContactChange("adults", index, "contactType", e.target.value)
                   }
                   displayEmpty
-                  sx={{ color: "black", textAlign: "center" }}
+                  sx={{ color: "white", textAlign: "center" }}
                 >
                   <MenuItem value="">Select</MenuItem>
                   <MenuItem value="Email">Email</MenuItem>
@@ -312,8 +312,8 @@ const GuestSelection = ({ formData, updateFormData, userName }) => {
                   }
                   sx={{
                     maxWidth: "180px",
-                    input: { color: "black", textAlign: "center" },
-                    label: { color: "black", textAlign: "center" },
+                    input: { color: "white", textAlign: "center" },
+                    label: { color: "white", textAlign: "center" },
                   }}
                 />
               )}
@@ -322,13 +322,13 @@ const GuestSelection = ({ formData, updateFormData, userName }) => {
         </Box>
       ))}
 
-      <Divider sx={{ my: 2, textAlign: "center", color: "black" }}>Children</Divider>
+      <Divider sx={{ my: 2, textAlign: "center", color: "white" }}>Children</Divider>
 
       {/* Children Guest Input Fields */}
       {childNames.map((guest, index) => (
         <Box
           key={index}
-          sx={{ display: "flex", alignItems: "center", gap: 1, mt: 1, color: "black" }}
+          sx={{ display: "flex", alignItems: "center", gap: 1, mt: 1, color: "white" }}
         >
           <TextField
             label={`Child ${index + 1}`}
@@ -337,8 +337,8 @@ const GuestSelection = ({ formData, updateFormData, userName }) => {
             size="small"
             sx={{
               maxWidth: "180px",
-              input: { color: "black", textAlign: "center" },
-              label: { color: "black", textAlign: "center" },
+              input: { color: "white", textAlign: "center" },
+              label: { color: "white", textAlign: "center" },
             }}
             value={guest.name}
             onChange={(e) =>

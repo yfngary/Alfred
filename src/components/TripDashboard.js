@@ -543,7 +543,6 @@ export default function TripDashboard({ id }) {
                 Accept: "application/json",
               },
             });
-
             setTrip(response.data);
             setLoading(false);
             setError(null);
@@ -877,6 +876,7 @@ export default function TripDashboard({ id }) {
 
     // Check if we have the auth token first
     const token = localStorage.getItem("token");
+    
     if (!token) {
       console.error("No authentication token available in TripDashboard");
       setError("Authentication required. Please sign in again.");
@@ -3052,6 +3052,7 @@ export default function TripDashboard({ id }) {
                       )
                         .slice(0, 3)
                         .map((lodging) => (
+                          console.log(lodging),
                           <ListItem
                             key={lodging._id}
                             secondaryAction={

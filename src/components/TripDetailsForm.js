@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { Box, TextField, Typography } from "@mui/material";
+import { Box, TextField, Typography, InputAdornment } from "@mui/material";
+import { CalendarToday as CalendarIcon } from "@mui/icons-material";
 
 const TripDetailsForm = ({ formData, updateFormData }) => {
   const today = new Date().toISOString().split("T")[0];
@@ -27,14 +28,13 @@ const TripDetailsForm = ({ formData, updateFormData }) => {
         display: "flex",
         flexDirection: "column",
         gap: 3,
-        color: "black",
         textAlign: "center",
       }}
     >
-      <Typography variant="h5" sx={{ fontWeight: "bold", color: "black" }}>
+      <Typography variant="h5" sx={{ fontWeight: "bold", mb: 1 }}>
         Trip Details
       </Typography>
-      <Typography variant="body1" sx={{ color: "black" }}>
+      <Typography variant="body1" sx={{ mb: 2, color: "text.secondary" }}>
         Please enter your trip name and select the dates for your trip.
       </Typography>
 
@@ -44,8 +44,7 @@ const TripDetailsForm = ({ formData, updateFormData }) => {
         variant="outlined"
         value={tripDetails.tripName}
         onChange={(e) => handleChange("tripName", e.target.value)}
-        InputLabelProps={{ style: { color: "black", textAlign: "center" } }}
-        InputProps={{ style: { color: "black", textAlign: "center" } }}
+        InputLabelProps={{ shrink: true }}
       />
 
       <TextField
@@ -53,13 +52,25 @@ const TripDetailsForm = ({ formData, updateFormData }) => {
         type="date"
         fullWidth
         variant="outlined"
-        InputLabelProps={{
-          shrink: true,
-          style: { color: "black", textAlign: "center" },
+        InputLabelProps={{ shrink: true }}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <CalendarIcon color="primary" />
+            </InputAdornment>
+          ),
+          sx: {
+            "& input::-webkit-calendar-picker-indicator": {
+              opacity: 1,
+              cursor: "pointer",
+              filter: "invert(0.7)",
+              width: "24px",
+              height: "24px",
+            }
+          }
         }}
-        inputProps={{
+        inputProps={{ 
           min: today,
-          style: { textAlign: "center", color: "black" },
         }}
         value={tripDetails.startDate}
         onChange={(e) => {
@@ -69,7 +80,7 @@ const TripDetailsForm = ({ formData, updateFormData }) => {
             handleChange("endDate", newStartDate);
           }
         }}
-        InputProps={{ style: { color: "black", textAlign: "center" } }}
+        onClick={(e) => e.target.showPicker()}
       />
 
       <TextField
@@ -77,17 +88,29 @@ const TripDetailsForm = ({ formData, updateFormData }) => {
         type="date"
         fullWidth
         variant="outlined"
-        InputLabelProps={{
-          shrink: true,
-          style: { color: "black", textAlign: "center" },
+        InputLabelProps={{ shrink: true }}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <CalendarIcon color="primary" />
+            </InputAdornment>
+          ),
+          sx: {
+            "& input::-webkit-calendar-picker-indicator": {
+              opacity: 1,
+              cursor: "pointer",
+              filter: "invert(0.7)",
+              width: "24px",
+              height: "24px",
+            }
+          }
         }}
-        inputProps={{
+        inputProps={{ 
           min: tripDetails.startDate,
-          style: { textAlign: "center", color: "black" },
         }}
         value={tripDetails.endDate}
         onChange={(e) => handleChange("endDate", e.target.value)}
-        InputProps={{ style: { color: "black", textAlign: "center" } }}
+        onClick={(e) => e.target.showPicker()}
       />
     </Box>
   );
