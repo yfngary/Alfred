@@ -109,8 +109,30 @@ export default function GuestManagement({ id }) {
   const [saveLoading, setSaveLoading] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState('');
   const [selectedGuestId, setSelectedGuestId] = useState('');
+  const [currentUserGroup, setCurrentUserGroup] = useState(null);
+  const [isTripOwner, setIsTripOwner] = useState(false);
 
-  // Fetch trip data
+  // Add this function after the existing useEffect hooks
+  const isGuestInUserGroup = (guestId) => {
+    // Trip owner can edit any guest
+    if (isTripOwner) return true;
+    
+    if (!currentUserGroup) return false;
+    
+    // Check if the guest exists in either level1 or level2 of the user's group
+    const guestInLevel1 = currentUserGroup.level1.some(g => 
+      (typeof g === 'string' && g === guestId) || 
+      (g._id === guestId)
+    );
+    const guestInLevel2 = currentUserGroup.level2.some(g => 
+      (typeof g === 'string' && g === guestId) || 
+      (g._id === guestId)
+    );
+    
+    return guestInLevel1 || guestInLevel2;
+  };
+
+  // Modify the useEffect that fetches trip data to also set the trip owner status
   useEffect(() => {
     const fetchTripDetails = async () => {
       try {
@@ -131,9 +153,20 @@ export default function GuestManagement({ id }) {
         }
 
         const data = await response.json();
-        setTrip(data.trip || data);
-        setGuests(data.trip?.guests || data.guests || []);
-        setGroups(data.trip?.guestRelationships || data.guestRelationships || []);
+        const tripData = data.trip || data;
+        setTrip(tripData);
+        setGuests(tripData?.guests || data.guests || []);
+        setGroups(tripData?.guestRelationships || data.guestRelationships || []);
+        
+        // Check if current user is the trip owner
+        const currentUserId = localStorage.getItem("userId"); // Assuming you store the user ID in localStorage
+        setIsTripOwner(tripData.userId === currentUserId);
+        
+        // Find the current user's group (assuming the first group is the user's group)
+        // This is a simplified assumption - in a real app, you'd want to get the user's actual group
+        if (tripData?.guestRelationships?.length > 0 || data.guestRelationships?.length > 0) {
+          setCurrentUserGroup(tripData?.guestRelationships?.[0] || data.guestRelationships?.[0]);
+        }
       } catch (err) {
         setError(err.message);
       } finally {
@@ -165,7 +198,13 @@ export default function GuestManagement({ id }) {
     });
   };
 
+  // Modify the handleRemoveGuest function to check permissions
   const handleRemoveGuest = (guestId) => {
+    if (!isGuestInUserGroup(guestId)) {
+      setError("You can only remove guests in your relationship group");
+      return;
+    }
+    
     setGuests(prev => prev.filter(g => g._id !== guestId));
     // Remove from groups
     setGroups(prev => prev.map(group => ({
@@ -175,7 +214,13 @@ export default function GuestManagement({ id }) {
     })));
   };
 
+  // Modify the handleEditGuest function to check permissions
   const handleEditGuest = (guest) => {
+    if (!isGuestInUserGroup(guest._id)) {
+      setError("You can only edit guests in your relationship group");
+      return;
+    }
+    
     setEditingGuest(guest);
     setNewGuest({
       name: guest.name,
@@ -743,26 +788,34 @@ export default function GuestManagement({ id }) {
                         {guest.email} {guest.phone && `• ${guest.phone}`}
                       </Typography>
                     </Box>
-                    <IconButton 
-                      onClick={() => handleEditGuest(guest)}
-                      sx={{ 
-                        color: 'primary.main',
-                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                        '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.1)' }
-                      }}
-                    >
-                      <EditIcon />
-                    </IconButton>
-                    <IconButton 
-                      onClick={() => handleRemoveGuest(guest._id)} 
-                      color="error"
-                      sx={{ 
-                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                        '&:hover': { backgroundColor: 'rgba(244, 67, 54, 0.1)' }
-                      }}
-                    >
-                      <DeleteIcon />
-                    </IconButton>
+                    {isGuestInUserGroup(guest._id) ? (
+                      <>
+                        <IconButton 
+                          onClick={() => handleEditGuest(guest)}
+                          sx={{ 
+                            color: 'primary.main',
+                            backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                            '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.1)' }
+                          }}
+                        >
+                          <EditIcon />
+                        </IconButton>
+                        <IconButton 
+                          onClick={() => handleRemoveGuest(guest._id)} 
+                          color="error"
+                          sx={{ 
+                            backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                            '&:hover': { backgroundColor: 'rgba(244, 67, 54, 0.1)' }
+                          }}
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </>
+                    ) : (
+                      <Typography variant="body2" color="rgba(255, 255, 255, 0.5)">
+                        {isTripOwner ? "Click to edit" : "Not in your group"}
+                      </Typography>
+                    )}
                   </ListItem>
                 ))}
                 {guests.length === 0 && (

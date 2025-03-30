@@ -2746,7 +2746,7 @@ export default function TripDashboard({ id }) {
                   <Tab label={`All (${experiences.length})`} />
                 </Tabs>
 
-                <Box sx={{ minHeight: 200, maxHeight: 250, overflow: "auto" }}>
+                <Box sx={{ minHeight: 250, maxHeight: 250, overflow: "auto" }}>
                   {experiences.length === 0 ? (
                     <Box
                       sx={{
@@ -3037,7 +3037,7 @@ export default function TripDashboard({ id }) {
                   <Tab label={`Other (${otherLodgings.length})`} />
                 </Tabs>
 
-                <Box sx={{ minHeight: 200, maxHeight: 250, overflow: "auto" }}>
+                <Box sx={{ minHeight: 250, maxHeight: 250, overflow: "auto" }}>
                   {trip.lodgings && trip.lodgings.length > 0 ? (
                     <List sx={{ px: 1 }}>
                       {(lodgingTab === 0
@@ -3056,7 +3056,12 @@ export default function TripDashboard({ id }) {
                           <ListItem
                             key={lodging._id}
                             secondaryAction={
-                              <Box sx={{ display: "flex", gap: 1 }}>
+                              <Box sx={{
+                                display: "flex",
+                                flexDirection: "column",
+                                justifyContent: "center",
+                                gap: 1,
+                                  }}>
                                 <Button
                                   variant="outlined"
                                   size="small"
@@ -3073,21 +3078,6 @@ export default function TripDashboard({ id }) {
                                 >
                                   Details
                                 </Button>
-                                <IconButton
-                                  size="small"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteLodging(lodging._id);
-                                  }}
-                                  sx={{
-                                    color: "#ef473a",
-                                    "&:hover": {
-                                      backgroundColor: "rgba(239, 71, 58, 0.1)",
-                                    },
-                                  }}
-                                >
-                                  <DeleteIcon fontSize="small" />
-                                </IconButton>
                               </Box>
                             }
                             sx={{
@@ -3117,13 +3107,12 @@ export default function TripDashboard({ id }) {
                               </Avatar>
                             </ListItemAvatar>
                             <ListItemText
-                              primary={
+                              secondary={
                                 <Typography
                                   variant="subtitle1"
                                   fontWeight="medium"
                                   sx={{ color: "var(--text-primary)" }}
                                 >
-                                  {lodging.name}
                                   <Chip
                                     label={lodging.lodgingType || "other"}
                                     size="small"
@@ -3132,7 +3121,7 @@ export default function TripDashboard({ id }) {
                                   />
                                 </Typography>
                               }
-                              secondary={
+                              primary={
                                 <React.Fragment>
                                   <Typography
                                     component="span"
@@ -3146,7 +3135,7 @@ export default function TripDashboard({ id }) {
                                     }}
                                   >
                                     <LocationIcon fontSize="small" />
-                                    {lodging.location}
+                                    {lodging.name}
                                   </Typography>
                                   <Typography
                                     variant="body2"

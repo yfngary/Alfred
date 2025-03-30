@@ -55,6 +55,7 @@ import {
   Note,
   Save
 } from "@mui/icons-material";
+import GuestGroupSelection from './GuestGroupSelection';
 
 export default function CreateExperience({ id }) {
   const params = useParams();
@@ -443,38 +444,64 @@ export default function CreateExperience({ id }) {
                   </Alert>
                 )}
                 
-                {trip?.guests && trip.guests.length > 0 ? (
-                  <Grid container spacing={2}>
-                    {trip.guests.map((guest) => (
-                      <Grid item xs={6} sm={4} key={guest._id}>
-                        <Card 
-                          variant="outlined" 
-                          sx={{ 
-                            cursor: "pointer",
-                            bgcolor: formData.selectedGuests.includes(guest.name) ? "primary.light" : "background.paper",
-                            transition: "all 0.3s"
-                          }}
-                          onClick={() => handleGuestSelection(guest.name)}
-                        >
-                          <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
-                            <Box display="flex" alignItems="center">
-                              <Avatar sx={{ mr: 1, bgcolor: formData.selectedGuests.includes(guest.name) ? "primary.dark" : "grey.400" }}>
-                                {guest.name.charAt(0)}
-                              </Avatar>
-                              <Typography>
-                                {guest.name}
-                              </Typography>
-                            </Box>
-                          </CardContent>
-                        </Card>
-                      </Grid>
-                    ))}
-                  </Grid>
-                ) : (
-                  <Alert severity="info">
-                    No guests found for this trip. Please add guests to the trip first.
-                  </Alert>
-                )}
+                {/* Individual Guest Selection */}
+                <Paper variant="outlined" sx={{ p: 3, mb: 3 }}>
+                  <Typography variant="subtitle1" gutterBottom>
+                    Select Individual Guests
+                  </Typography>
+                  
+                  {trip?.guests && trip.guests.length > 0 ? (
+                    <Grid container spacing={2}>
+                      {trip.guests.map((guest) => (
+                        <Grid item xs={6} sm={4} key={guest._id}>
+                          <Card 
+                            variant="outlined" 
+                            sx={{ 
+                              cursor: "pointer",
+                              bgcolor: formData.selectedGuests.includes(guest.name) ? "primary.light" : "background.paper",
+                              transition: "all 0.3s"
+                            }}
+                            onClick={() => handleGuestSelection(guest.name)}
+                          >
+                            <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+                              <Box display="flex" alignItems="center">
+                                <Avatar sx={{ mr: 1, bgcolor: formData.selectedGuests.includes(guest.name) ? "primary.dark" : "grey.400" }}>
+                                  {guest.name.charAt(0)}
+                                </Avatar>
+                                <Typography>
+                                  {guest.name}
+                                </Typography>
+                              </Box>
+                            </CardContent>
+                          </Card>
+                        </Grid>
+                      ))}
+                    </Grid>
+                  ) : (
+                    <Alert severity="info">
+                      No guests found for this trip. Please add guests to the trip first.
+                    </Alert>
+                  )}
+                </Paper>
+
+                {/* Group-based Guest Selection */}
+                <Paper variant="outlined" sx={{ p: 3 }}>
+                  <Typography variant="subtitle1" gutterBottom>
+                    Select by Group
+                  </Typography>
+                  
+                  {trip?.guestRelationships && trip.guestRelationships.length > 0 ? (
+                    <GuestGroupSelection
+                      guestRelationships={trip.guestRelationships}
+                      selectedGuests={formData.selectedGuests}
+                      onGuestSelection={handleGuestSelection}
+                    />
+                  ) : (
+                    <Alert severity="info">
+                      No guest groups found for this trip. Please add guest relationships to the trip first.
+                    </Alert>
+                  )}
+                </Paper>
               </Box>
             )}
             
