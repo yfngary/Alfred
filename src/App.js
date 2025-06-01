@@ -21,6 +21,9 @@ import UserProfile from "./components/userProfilePage";
 import NotificationPage from "./components/NotificationsPage";
 import Dashboard from "./components/Dashboard"; // We'll create this
 import TripCalendarView from "./components/TripCalendarView"; // Import the calendar view component
+import PackingList from "./pages/PackingList"; // Import the packing list component
+import Weather from "./pages/Weather"; // Import the weather component
+import Gallery from "./pages/Gallery"; // Import the gallery component
 import { Box, ThemeProvider, createTheme, CircularProgress } from "@mui/material";
 import JoinTrip from "./components/JoinTrip";
 import JoinTripPage from "./pages/JoinTripPage";
@@ -220,6 +223,30 @@ function Layout() {
           <Box>
             <TripCalendarView />
           </Box>
+        </ProtectedRoute>
+      ),
+    },
+    {
+      path: "/trips/:tripId/packing",
+      element: (
+        <ProtectedRoute>
+          <PackingList />
+        </ProtectedRoute>
+      ),
+    },
+    {
+      path: "/trips/:tripId/weather",
+      element: (
+        <ProtectedRoute>
+          <Weather />
+        </ProtectedRoute>
+      ),
+    },
+    {
+      path: "/trips/:tripId/gallery",
+      element: (
+        <ProtectedRoute>
+          <Gallery />
         </ProtectedRoute>
       ),
     },

@@ -18,15 +18,26 @@ require("dotenv").config();
 
 const app = express();
 const server = http.createServer(app);
+
+// Update CORS configuration for production
+const allowedOrigins = [
+  process.env.FRONTEND_URL || "http://localhost:3000",
+  "https://alfred-app.vercel.app"
+];
+
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:3000", // Frontend URL
+    origin: allowedOrigins,
     methods: ["GET", "POST"],
+    credentials: true
   },
 });
 
-// ✅ Enable CORS for frontend at http://localhost:3000
-app.use(cors({ origin: "http://localhost:3000", credentials: true }));
+// Enable CORS for frontend
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true
+}));
 
 // Middleware
 app.use(express.json());
@@ -51,10 +62,16 @@ app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-const PORT = process.env.PORT || 5001;
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+// Update the server.listen to work with Vercel
+if (process.env.NODE_ENV !== 'production') {
+  const PORT = process.env.PORT || 5001;
+  server.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
+
+// Export the Express app for Vercel
+module.exports = app;
 
 io.on("connection", (socket) => {
   console.log("🔵 New WebSocket Connection:", socket.id);

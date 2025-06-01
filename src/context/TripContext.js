@@ -204,7 +204,6 @@ export const TripProvider = ({ children }) => {
 
     // Listen for online/offline changes
     const handleOnline = () => {
-      console.log('Device is online, you can refresh to get fresh data');
       if (isMounted && offlineMode === true) {
         // Only auto-refresh if we were in forced offline mode
         setOfflineMode(false);
@@ -238,7 +237,6 @@ export const TripProvider = ({ children }) => {
   // Function to fetch trip by ID
   const fetchTripById = async (tripId, options = {}) => {
     const { signal, cancelToken } = options;
-    console.log(`=== fetchTripById INTERNAL START for ${tripId} ===`);
     
     // Skip fetching if we're in offline mode
     if (offlineMode) {
@@ -286,20 +284,11 @@ export const TripProvider = ({ children }) => {
     }, 10000);
 
     try {
-      console.log(`Starting actual API fetch for trip ${tripId} (with 8s timeout)`);
-      console.log(`Auth token present: ${!!token}, token length: ${token?.length || 0}`);
       
       const startTime = Date.now();
-      
-      // Add diagnostic timeout to check status after 5 seconds
-      const diagnosticTimeoutId = setTimeout(() => {
-        console.log(`API request for trip ${tripId} still pending after 5s`);
-        console.log('Currently active requests:', window.activeRequests || {});
-      }, 5000);
-      
+
       // Add a unique request ID for tracking
       const requestId = `trip-${tripId}-${Date.now()}`;
-      console.log(`Request ID for tracking: ${requestId}`);
       
       const response = await axios.get(`/api/trips/${tripId}`, {
         signal: effectiveSignal,
@@ -317,8 +306,7 @@ export const TripProvider = ({ children }) => {
       clearTimeout(diagnosticTimeoutId);
       
       const duration = Date.now() - startTime;
-      console.log(`Fetched trip ${tripId} in ${duration}ms`);
-      
+
       // Reset problematic status on success
       if (problematicEndpoints[tripEndpoint]) {
         problematicEndpoints[tripEndpoint] = {
@@ -332,21 +320,16 @@ export const TripProvider = ({ children }) => {
       
       // Update cache
       cacheTrip(trip);
-      
-      console.log(`=== fetchTripById INTERNAL END for ${tripId} (success) ===`);
+
       return trip;
     } catch (err) {
       // Clear timeouts
       clearTimeout(hardTimeoutId);
       
-      console.error(`Error fetching trip ${tripId}:`, err);
       console.log(`Error type: ${err.name}, message: ${err.message}, code: ${err.code}`);
       
       // Track failures for this specific endpoint
       markEndpointAsProblematic(tripEndpoint);
-      
-      // Log additional diagnostic info
-      console.log('Currently active requests after error:', window.activeRequests || {});
       
       // Try to use cached data as fallback
       const cachedTrip = getCachedTrip(tripId);
@@ -359,8 +342,7 @@ export const TripProvider = ({ children }) => {
           _fetchError: err.message
         };
       }
-      
-      console.log(`=== fetchTripById INTERNAL END for ${tripId} (error) ===`);
+
       throw err;
     }
   };
@@ -370,27 +352,21 @@ export const TripProvider = ({ children }) => {
     const { force = false, useCache = true, signal, cancelToken } = options;
     
     try {
-      console.log(`=== TripContext.fetchTripById START for ${tripId} ===`);
-      console.log('  Options:', { force, useCache, hasSignal: !!signal, hasCancelToken: !!cancelToken });
       
       if (!tripId) {
         throw new Error("No trip ID provided");
       }
       
-      console.log(`Fetching trip ${tripId} [force=${force}, useCache=${useCache}, offlineMode=${offlineMode}]`);
-      
       // 1. Check local state first if not forcing refresh
       if (!force) {
         const localTrip = getTripById(tripId);
         if (localTrip) {
-          console.log(`Trip ${tripId} found in local state, returning immediately`);
           return { success: true, trip: localTrip, source: 'context' };
         }
         console.log(`Trip ${tripId} not found in local state, continuing with fetch`);
       }
       
       // 2. Use fetchTripById for actual fetching
-      console.log(`Making actual API call for trip ${tripId}`);
       const startTime = Date.now();
       
       const trip = await fetchTripById(tripId, { 
@@ -399,7 +375,6 @@ export const TripProvider = ({ children }) => {
       });
       
       const duration = Date.now() - startTime;
-      console.log(`API call for trip ${tripId} completed in ${duration}ms`);
       
       // If trip has _fromCache flag, it's a fallback
       if (trip._fromCache) {
@@ -412,7 +387,6 @@ export const TripProvider = ({ children }) => {
         };
       }
       
-      console.log(`Successfully fetched fresh data for trip ${tripId}`);
       return { success: true, trip, source: 'direct' };
     } catch (err) {
       console.error(`Error in fetchTripByIdCompat for ${tripId}:`, err);
@@ -422,7 +396,7 @@ export const TripProvider = ({ children }) => {
         source: null
       };
     } finally {
-      console.log(`=== TripContext.fetchTripById END for ${tripId} ===`);
+
     }
   }, [getTripById, offlineMode, fetchTripById]);
 

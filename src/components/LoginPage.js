@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, memo } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import "../styles/login.css";
+import { apiHelpers } from '../utils/apiConfig';
 
 // Memoized star component to prevent re-rendering
 const Star = memo(({ top, left, size, delay }) => (
@@ -191,22 +192,18 @@ export default function LoginPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
     if (validate()) {
       setLoading(true);
       setMessage("");
-
+      
       try {
         console.log("Attempting login with:", {
           email: formData.email,
           timestamp: new Date().toISOString()
         });
 
-        const response = await fetch("http://localhost:5001/api/auth/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(formData),
-          credentials: 'include'
-        });
+        const response = await apiHelpers.post("/api/auth/login", formData);
 
         console.log("Login response status:", response.status);
         
@@ -288,11 +285,7 @@ export default function LoginPage() {
       setIsResendingVerification(true);
       
       try {
-        const response = await fetch("http://localhost:5001/api/auth/resend-verification", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: resendEmail }),
-        });
+        const response = await apiHelpers.post("/api/auth/resend-verification", { email: resendEmail });
         
         const result = await response.json();
         
@@ -318,11 +311,7 @@ export default function LoginPage() {
       setMessage("");
       
       try {
-        const response = await fetch("http://localhost:5001/api/auth/forgot-password", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: forgotPasswordEmail }),
-        });
+        const response = await apiHelpers.post("/api/auth/forgot-password", { email: forgotPasswordEmail });
         
         const result = await response.json();
         

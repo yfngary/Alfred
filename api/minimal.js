@@ -1,21 +1,26 @@
-// Minimal API test without any external dependencies
+const serverless = require('serverless-http');
 
-module.exports = (req, res) => {
-  // Simple health check
-  if (req.url === '/api/minimal' || req.url === '/api/minimal/') {
-    res.status(200).json({
-      status: 'OK',
-      message: 'Minimal API working',
-      timestamp: new Date().toISOString(),
-      method: req.method,
-      url: req.url
-    });
+// Simple Express-like handler
+const handler = (req, res) => {
+  // Set CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  
+  if (req.method === 'OPTIONS') {
+    res.statusCode = 200;
+    res.end();
     return;
   }
   
-  // Default response
-  res.status(404).json({
-    error: 'Not found',
-    availableEndpoints: ['/api/minimal']
-  });
-}; 
+  res.statusCode = 200;
+  res.setHeader('Content-Type', 'application/json');
+  res.end(JSON.stringify({
+    message: 'Minimal function working!',
+    timestamp: new Date().toISOString(),
+    method: req.method,
+    url: req.url
+  }));
+};
+
+module.exports = handler; 

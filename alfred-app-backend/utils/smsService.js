@@ -1,10 +1,30 @@
 const twilio = require('twilio');
 require('dotenv').config();
 
-// Create a Twilio client only if credentials are provided
-const twilioClient = process.env.TWILIO_ACCOUNT_SID !== 'disabled' 
-  ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
-  : null;
+// Don't initialize Twilio client immediately - do it when needed
+let twilioClient = null;
+
+// Function to get or create Twilio client
+const getTwilioClient = () => {
+  // If Twilio is disabled, return null
+  if (process.env.TWILIO_ACCOUNT_SID === 'disabled' || !process.env.TWILIO_ACCOUNT_SID) {
+    return null;
+  }
+  
+  // If client already exists, return it
+  if (twilioClient) {
+    return twilioClient;
+  }
+  
+  // Create new client only when needed and credentials are available
+  try {
+    twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+    return twilioClient;
+  } catch (error) {
+    console.error('Error initializing Twilio client:', error);
+    return null;
+  }
+};
 
 /**
  * Send an invitation SMS to a guest
@@ -23,8 +43,11 @@ const sendTripInvitationSMS = async ({
   customMessage,
   senderName,
 }) => {
+  // Get Twilio client (or null if disabled)
+  const client = getTwilioClient();
+  
   // Check if SMS service is disabled
-  if (!twilioClient) {
+  if (!client) {
     console.log('SMS service is disabled');
     return { status: 'disabled', message: 'SMS service is currently disabled' };
   }
@@ -41,7 +64,7 @@ const sendTripInvitationSMS = async ({
   }! ${customMessage ? `"${customMessage}" ` : ''}Join here: ${invitationUrl}`;
 
   try {
-    const message = await twilioClient.messages.create({
+    const message = await client.messages.create({
       body: messageBody,
       from: process.env.TWILIO_PHONE_NUMBER,
       to: formattedPhone,

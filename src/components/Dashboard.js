@@ -27,6 +27,7 @@ import {
   ArrowForward as ArrowIcon,
   Explore as ExploreIcon
 } from '@mui/icons-material';
+import { apiHelpers } from '../utils/apiConfig';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -82,7 +83,7 @@ const Dashboard = () => {
 
         console.log("Current user ID:", userId);
 
-        const response = await fetch('http://localhost:5001/api/trips/userTrips', {
+        const response = await apiHelpers.get('/api/trips/userTrips', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'

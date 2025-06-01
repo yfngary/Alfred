@@ -5,7 +5,11 @@ window.activeRequests = window.activeRequests || {};
 const requestAbortControllers = {};
 
 // Set default base URL for all axios requests
-axios.defaults.baseURL = 'http://localhost:5001';
+// Use relative URL if no environment variable is set - this ensures frontend and backend use the same domain
+const API_BASE_URL = process.env.REACT_APP_API_URL || '';
+if (API_BASE_URL) {
+  axios.defaults.baseURL = API_BASE_URL;
+}
 
 // Set a default timeout for all requests (5 seconds - less than component timeout)
 axios.defaults.timeout = 5000;

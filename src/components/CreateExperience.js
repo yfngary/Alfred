@@ -250,6 +250,24 @@ export default function CreateExperience({ id }) {
             new Date(formData.endDate) <= new Date(formData.date)) {
           newErrors.endDate = "End date must be after start date";
         }
+        
+        // Validate that dates are within trip date range
+        if (formData.date && trip?.startDate && trip?.endDate) {
+          const tripStart = new Date(trip.startDate);
+          const tripEnd = new Date(trip.endDate);
+          const selectedDate = new Date(formData.date);
+          
+          if (selectedDate < tripStart || selectedDate > tripEnd) {
+            newErrors.date = `Date must be between ${tripStart.toLocaleDateString()} and ${tripEnd.toLocaleDateString()}`;
+          }
+          
+          if (formData.isMultiDay && formData.endDate) {
+            const selectedEndDate = new Date(formData.endDate);
+            if (selectedEndDate < tripStart || selectedEndDate > tripEnd) {
+              newErrors.endDate = `End date must be between ${tripStart.toLocaleDateString()} and ${tripEnd.toLocaleDateString()}`;
+            }
+          }
+        }
         break;
         
       case 2: // Experience Type
@@ -350,14 +368,15 @@ export default function CreateExperience({ id }) {
       });
   
       const result = await response.json();
+      console.log(result);
       
       if (response.ok) {
         setSuccess("Experience created successfully!");
         setTimeout(() => {
           if (result.chatId) {
-            navigate(`/chat/${result.chatId}`);
-          } else {
             navigate(`/trips/${tripId}`);
+          } else {
+            navigate(`/dashboard`);
           }
         }, 2000);
       } else {
@@ -433,10 +452,12 @@ export default function CreateExperience({ id }) {
             {/* Step 1: Select Guests */}
             {activeStep === 0 && (
               <Box>
-                <Typography variant="h6" gutterBottom>
-                  <PersonAdd sx={{ mr: 1, verticalAlign: "middle" }} />
-                  Who's participating?
-                </Typography>
+                <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                  <Typography variant="h6">
+                    <PersonAdd sx={{ mr: 1, verticalAlign: "middle" }} />
+                    Who's participating?
+                  </Typography>
+                </Box>
                 
                 {errors.selectedGuests && (
                   <Alert severity="error" sx={{ mb: 2 }}>
@@ -446,9 +467,58 @@ export default function CreateExperience({ id }) {
                 
                 {/* Individual Guest Selection */}
                 <Paper variant="outlined" sx={{ p: 3, mb: 3 }}>
-                  <Typography variant="subtitle1" gutterBottom>
-                    Select Individual Guests
-                  </Typography>
+                  <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                    <Typography variant="subtitle1">
+                      Select Individual Guests
+                    </Typography>
+                    {trip?.guests && trip.guests.length > 0 && (
+                      <FormControlLabel
+                        control={
+                          <Checkbox
+                            checked={trip.guests.length > 0 && trip.guests.every(guest => 
+                              formData.selectedGuests.includes(guest.name)
+                            )}
+                            indeterminate={trip.guests.some(guest => 
+                              formData.selectedGuests.includes(guest.name)
+                            ) && !trip.guests.every(guest => 
+                              formData.selectedGuests.includes(guest.name)
+                            )}
+                            onChange={() => {
+                              const allSelected = trip.guests.every(guest => 
+                                formData.selectedGuests.includes(guest.name)
+                              );
+                              
+                              if (allSelected) {
+                                // Deselect all individual guests
+                                setFormData(prev => ({
+                                  ...prev,
+                                  selectedGuests: prev.selectedGuests.filter(
+                                    name => !trip.guests.some(guest => guest.name === name)
+                                  )
+                                }));
+                              } else {
+                                // Select all individual guests
+                                const guestNames = trip.guests.map(guest => guest.name);
+                                const currentSelected = formData.selectedGuests.filter(
+                                  name => !trip.guests.some(guest => guest.name === name)
+                                );
+                                setFormData(prev => ({
+                                  ...prev,
+                                  selectedGuests: [...currentSelected, ...guestNames]
+                                }));
+                              }
+                              
+                              // Clear guest validation error
+                              if (errors.selectedGuests) {
+                                setErrors(prev => ({ ...prev, selectedGuests: "" }));
+                              }
+                            }}
+                          />
+                        }
+                        label="Select All"
+                      />
+                    )}
+                  </Box>
                   
                   {trip?.guests && trip.guests.length > 0 ? (
                     <Grid container spacing={2}>
@@ -486,9 +556,67 @@ export default function CreateExperience({ id }) {
 
                 {/* Group-based Guest Selection */}
                 <Paper variant="outlined" sx={{ p: 3 }}>
-                  <Typography variant="subtitle1" gutterBottom>
-                    Select by Group
-                  </Typography>
+                  <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                    <Typography variant="subtitle1">
+                      Select by Group
+                    </Typography>
+                    {trip?.guestRelationships && trip.guestRelationships.length > 0 && (
+                      <FormControlLabel
+                        control={
+                          <Checkbox
+                            checked={
+                              trip.guestRelationships.length > 0 && 
+                              trip.guestRelationships.flatMap(group => [...group.level1, ...group.level2])
+                                .every(guest => formData.selectedGuests.includes(guest.name))
+                            }
+                            indeterminate={
+                              trip.guestRelationships.flatMap(group => [...group.level1, ...group.level2])
+                                .some(guest => formData.selectedGuests.includes(guest.name)) && 
+                              !trip.guestRelationships.flatMap(group => [...group.level1, ...group.level2])
+                                .every(guest => formData.selectedGuests.includes(guest.name))
+                            }
+                            onChange={() => {
+                              const allGroupGuests = trip.guestRelationships.flatMap(
+                                group => [...group.level1, ...group.level2]
+                              );
+                              
+                              const allSelected = allGroupGuests.every(
+                                guest => formData.selectedGuests.includes(guest.name)
+                              );
+                              
+                              if (allSelected) {
+                                // Deselect all group guests
+                                setFormData(prev => ({
+                                  ...prev,
+                                  selectedGuests: prev.selectedGuests.filter(
+                                    name => !allGroupGuests.some(guest => guest.name === name)
+                                  )
+                                }));
+                              } else {
+                                // Select all group guests
+                                const allGroupGuestNames = allGroupGuests.map(guest => guest.name);
+                                // Keep guests that aren't in any group
+                                const currentSelected = formData.selectedGuests.filter(
+                                  name => !allGroupGuests.some(guest => guest.name === name)
+                                );
+                                
+                                setFormData(prev => ({
+                                  ...prev,
+                                  selectedGuests: [...currentSelected, ...allGroupGuestNames]
+                                }));
+                              }
+                              
+                              // Clear guest validation error
+                              if (errors.selectedGuests) {
+                                setErrors(prev => ({ ...prev, selectedGuests: "" }));
+                              }
+                            }}
+                          />
+                        }
+                        label="Select All Groups"
+                      />
+                    )}
+                  </Box>
                   
                   {trip?.guestRelationships && trip.guestRelationships.length > 0 ? (
                     <GuestGroupSelection
@@ -567,6 +695,16 @@ export default function CreateExperience({ id }) {
                   
                   <Divider sx={{ mb: 3 }} />
                   
+                  {trip?.startDate && trip?.endDate && (
+                    <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', bgcolor: 'info.light', p: 1.5, borderRadius: 1 }}>
+                      <Event color="info" sx={{ mr: 1 }} />
+                      <Typography variant="body2" color="info.dark">
+                        Your experience must be scheduled within your trip dates: 
+                        <strong> {new Date(trip.startDate).toLocaleDateString()} - {new Date(trip.endDate).toLocaleDateString()}</strong>
+                      </Typography>
+                    </Box>
+                  )}
+                  
                   <Grid container spacing={3}>
                     {/* Start date - common to both types */}
                     <Grid item xs={12} sm={formData.isMultiDay ? 6 : 6}>
@@ -586,13 +724,16 @@ export default function CreateExperience({ id }) {
                               variant="outlined"
                               placeholder="Select date"
                               error={!!errors.date}
-                              helperText={errors.date}
+                              helperText={errors.date || (trip?.startDate && trip?.endDate ? 
+                                `Select a date between ${new Date(trip.startDate).toLocaleDateString()} and ${new Date(trip.endDate).toLocaleDateString()}` : 
+                                "Select a date")}
                               InputProps={{
                                 startAdornment: <Event color="action" sx={{ mr: 1 }} />,
                               }}
                             />
                           }
-                          minDate={new Date()}
+                          minDate={trip?.startDate ? new Date(trip.startDate) : new Date()}
+                          maxDate={trip?.endDate ? new Date(trip.endDate) : undefined}
                         />
                       </Box>
                     </Grid>
@@ -622,7 +763,8 @@ export default function CreateExperience({ id }) {
                                 }}
                               />
                             }
-                            minDate={formData.date || new Date()}
+                            minDate={formData.date || (trip?.startDate ? new Date(trip.startDate) : new Date())}
+                            maxDate={trip?.endDate ? new Date(trip.endDate) : undefined}
                           />
                         </Box>
                       </Grid>
@@ -646,7 +788,6 @@ export default function CreateExperience({ id }) {
                                 format="HH:mm"
                                 views={['hours', 'minutes']}
                                 onChange={(newValue) => {
-                                  console.log("TimePicker value changed:", newValue);
                                   setFormData(prev => ({
                                     ...prev,
                                     startTime: newValue ? newValue.format('HH:mm') : ''

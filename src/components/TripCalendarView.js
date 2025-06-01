@@ -18,6 +18,12 @@ import {
   Avatar,
   useMediaQuery,
   useTheme,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Chip,
+  Stack,
 } from '@mui/material';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import FlightIcon from '@mui/icons-material/Flight';
@@ -32,9 +38,204 @@ import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import LocalActivityIcon from '@mui/icons-material/LocalActivity';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
+import TimeIcon from '@mui/icons-material/AccessTime';
+import PlaceIcon from '@mui/icons-material/Place';
+import GroupIcon from '@mui/icons-material/Group';
+import NotesIcon from '@mui/icons-material/Notes';
 
 // Activity icon component
 const ActivityIcon = () => <LocalActivityIcon />;
+
+// Utility function to generate a color from a string (for avatar backgrounds)
+const stringToColor = (string) => {
+  let hash = 0;
+  let i;
+
+  for (i = 0; i < string.length; i += 1) {
+    hash = string.charCodeAt(i) + ((hash << 5) - hash);
+  }
+
+  let color = '#';
+
+  for (i = 0; i < 3; i += 1) {
+    const value = (hash >> (i * 8)) & 0xff;
+    color += `00${value.toString(16)}`.slice(-2);
+  }
+
+  return color;
+};
+
+const TimelineView = ({ events, onViewExperience, getExperienceTypeColor, getExperienceIcon, formatTime }) => {
+  // Sort events by start time
+  const sortedEvents = [...events].sort((a, b) => {
+    if (!a.start || !b.start) return 0;
+    return a.start - b.start;
+  });
+
+  // Calculate time between events for spacing
+  const getTimeBetween = (current, next) => {
+    if (!current || !current.end || !next || !next.start) return null;
+    
+    const end = new Date(current.end);
+    const start = new Date(next.start);
+    const diffMs = start - end;
+    
+    if (diffMs <= 0) return null;
+    
+    const diffMins = Math.round(diffMs / 60000);
+    if (diffMins < 60) return `${diffMins} min`;
+    
+    const hours = Math.floor(diffMins / 60);
+    const mins = diffMins % 60;
+    return `${hours}h${mins > 0 ? ` ${mins}m` : ''}`;
+  };
+
+  return (
+    <Box sx={{ width: '100%', position: 'relative' }}>
+      {/* Center line */}
+      <Box 
+        sx={{ 
+          position: 'absolute', 
+          left: '50%', 
+          top: 0, 
+          bottom: 0, 
+          width: 2, 
+          bgcolor: 'rgba(255, 255, 255, 0.1)', 
+          transform: 'translateX(-50%)',
+          zIndex: 0
+        }} 
+      />
+      
+      {sortedEvents.map((event, index) => {
+        const timeBetween = index < sortedEvents.length - 1 
+          ? getTimeBetween(event, sortedEvents[index + 1]) 
+          : null;
+        const isLeft = index % 2 === 0;
+        
+        return (
+          <Box key={event.id || index} sx={{ mb: 4, position: 'relative' }}>
+            {/* Time marker */}
+            <Box 
+              sx={{ 
+                position: 'absolute', 
+                left: '50%', 
+                top: 16,
+                transform: 'translateX(-50%)', 
+                zIndex: 2,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+              }}
+            >
+              <Avatar 
+                sx={{ 
+                  bgcolor: getExperienceTypeColor(event.resource?.type),
+                  background: `linear-gradient(135deg, ${getExperienceTypeColor(event.resource?.type)}80 0%, ${getExperienceTypeColor(event.resource?.type)} 100%)`,
+                  width: 40, 
+                  height: 40,
+                  boxShadow: '0 0 10px rgba(0,0,0,0.3)',
+                  border: '2px solid rgba(255,255,255,0.1)',
+                }}
+              >
+                {getExperienceIcon(event.resource?.type)}
+              </Avatar>
+              
+              {/* Time label */}
+              <Box 
+                sx={{ 
+                  mt: 1, 
+                  bgcolor: 'rgba(0,0,0,0.5)', 
+                  px: 1, 
+                  py: 0.5, 
+                  borderRadius: 1,
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                }}
+              >
+                <Typography variant="caption" color="text.secondary">
+                  {event.start && new Date(event.start).toLocaleTimeString('en-US', { 
+                    hour: '2-digit', 
+                    minute: '2-digit',
+                    hour12: true
+                  })}
+                </Typography>
+              </Box>
+            </Box>
+            
+            {/* Content card */}
+            <Grid container spacing={2}>
+              <Grid item xs={5.5} sx={{ ml: isLeft ? 0 : 'auto', mr: isLeft ? 'auto' : 0 }}>
+                <Card 
+                  elevation={1}
+                  onClick={() => onViewExperience(event.resource)}
+                  sx={{
+                    bgcolor: 'rgba(0, 0, 0, 0.4)',
+                    backdropFilter: 'blur(5px)',
+                    borderRadius: 2,
+                    p: 2,
+                    border: '1px solid',
+                    borderColor: `${getExperienceTypeColor(event.resource?.type)}30`,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    '&:hover': {
+                      transform: 'translateY(-4px)',
+                      boxShadow: `0 6px 12px ${getExperienceTypeColor(event.resource?.type)}20`,
+                      borderColor: `${getExperienceTypeColor(event.resource?.type)}50`,
+                    }
+                  }}
+                >
+                  <Typography variant="h6" component="div" color="text.primary">
+                    {event.title}
+                  </Typography>
+                  
+                  {event.resource?.location && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
+                      <LocationOnIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary' }} />
+                      <Typography variant="body2" color="text.secondary" noWrap>
+                        {event.resource.location}
+                      </Typography>
+                    </Box>
+                  )}
+                  
+                  {event.start && event.end && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
+                      <AccessTimeIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary' }} />
+                      <Typography variant="body2" color="text.secondary">
+                        {formatTime(event.start)} - {formatTime(event.end)}
+                      </Typography>
+                    </Box>
+                  )}
+                </Card>
+                
+                {/* Break indicator */}
+                {timeBetween && (
+                  <Box 
+                    sx={{ 
+                      mt: 2, 
+                      display: 'flex',
+                      justifyContent: isLeft ? 'flex-end' : 'flex-start',
+                    }}
+                  >
+                    <Chip 
+                      label={`${timeBetween} break`} 
+                      size="small"
+                      sx={{
+                        bgcolor: 'rgba(0, 0, 0, 0.3)',
+                        color: 'text.secondary',
+                        border: '1px dashed rgba(255, 255, 255, 0.1)',
+                      }}
+                    />
+                  </Box>
+                )}
+              </Grid>
+            </Grid>
+          </Box>
+        );
+      })}
+    </Box>
+  );
+};
 
 const TripCalendarView = () => {
   const { tripId } = useParams();
@@ -44,6 +245,9 @@ const TripCalendarView = () => {
   const [error, setError] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
   const [showAddButton, setShowAddButton] = useState(false);
+  const [openExperienceDialog, setOpenExperienceDialog] = useState(false);
+  const [selectedExperience, setSelectedExperience] = useState(null);
+  const [viewMode, setViewMode] = useState('calendar'); // 'calendar' or 'itinerary'
   const navigate = useNavigate();
   const theme = useTheme();
   const matches = useMediaQuery(theme.breakpoints.down('sm'));
@@ -175,6 +379,13 @@ const TripCalendarView = () => {
     
   }, [tripId]); // Dependency on tripId only
 
+    // Handle viewing an experience's details
+    const handleViewExperience = (experience) => {
+      console.log("Viewing experience details:", experience);
+      setSelectedExperience(experience);
+      setOpenExperienceDialog(true);
+    };
+
   // Handle loading state
   if (loading) {
     return (
@@ -274,7 +485,11 @@ const TripCalendarView = () => {
 
   // Handle event selection
   const handleSelectExperience = (experienceId) => {
-    navigate(`/experiences/${experienceId}`);
+    // Find the experience in the events array
+    const experience = events.find(event => event.id === experienceId)?.resource;
+    if (experience) {
+      handleViewExperience(experience);
+    }
   };
   
   // Group events by date for our custom calendar
@@ -419,6 +634,49 @@ const TripCalendarView = () => {
   // Get today's date
   const today = new Date();
   
+  // Handle delete experience functionality (add this)
+  const handleDeleteExperience = async (experienceId) => {
+    if (!window.confirm("Are you sure you want to delete this experience? This action cannot be undone.")) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`http://localhost:5001/api/trips/${tripId}/experiences/${experienceId}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        // Update the events list by removing the deleted experience
+        setEvents(events.filter(event => event.id !== experienceId));
+        setOpenExperienceDialog(false);
+        // Could add a snackbar notification here
+      }
+    } catch (error) {
+      console.error("Error deleting experience:", error);
+    }
+  };
+
+  // Handle edit experience
+  const handleOpenEditExperience = (experience) => {
+    navigate(`/trips/${tripId}/edit-experience/${experience._id}`);
+  };
+
+  // Modify the setSelectedDate function to also change the view mode
+  const handleDateSelect = (date) => {
+    setSelectedDate(date);
+    setViewMode('itinerary');
+  };
+
+  // Add a function to return to calendar view
+  const handleBackToCalendar = () => {
+    setViewMode('calendar');
+  };
+
   return (
     <Box 
       sx={{ 
@@ -545,348 +803,298 @@ const TripCalendarView = () => {
               gap: 2,
               mb: 2 
             }}>
-              <Typography variant="h6" sx={{ 
-                display: 'flex', 
-                alignItems: 'center',
-                fontSize: { xs: '1.1rem', sm: '1.25rem' },
-                color: 'text.primary'
-              }}>
-                <CalendarTodayIcon sx={{ mr: 1 }} />
-                Calendar View
-              </Typography>
-              
-              <Box sx={{ 
-                display: 'flex', 
-                alignItems: 'center',
-                width: { xs: '100%', sm: 'auto' }
-              }}>
-                <IconButton 
-                  onClick={handlePrevDate}
-                  disabled={!selectedDate || !allDates.length || selectedDate.toDateString() === allDates[0]?.toDateString()}
-                  size="small"
-                  sx={{ 
-                    mr: 1,
-                    color: 'text.primary',
-                    '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.05)' }
-                  }}
-                >
-                  <NavigateBeforeIcon />
-                </IconButton>
-                
-                <Typography 
-                  variant="subtitle1" 
-                  sx={{ 
-                    mx: 1, 
-                    fontWeight: 'medium',
-                    fontSize: { xs: '0.9rem', sm: '1rem' },
-                    flex: 1,
-                    textAlign: { xs: 'center', sm: 'left' },
-                    color: 'text.primary'
-                  }}
-                >
-                  {selectedDate ? formatDay(selectedDate) : 'Select a date'}
+              {viewMode === 'calendar' ? (
+                <Typography variant="h6" sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center',
+                  fontSize: { xs: '1.1rem', sm: '1.25rem' },
+                  color: 'text.primary'
+                }}>
+                  <CalendarTodayIcon sx={{ mr: 1 }} />
+                  Calendar View
                 </Typography>
-                
-                <IconButton 
-                  onClick={handleNextDate}
-                  disabled={!selectedDate || !allDates.length || selectedDate.toDateString() === allDates[allDates.length - 1]?.toDateString()}
+              ) : (
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <IconButton 
+                    onClick={handleBackToCalendar}
+                    size="small"
+                    sx={{ 
+                      mr: 1,
+                      color: 'text.primary',
+                      '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.05)' }
+                    }}
+                  >
+                    <NavigateBeforeIcon />
+                  </IconButton>
+                  <Typography variant="h6" sx={{ 
+                    fontSize: { xs: '1.1rem', sm: '1.25rem' },
+                    color: 'text.primary'
+                  }}>
+                    {selectedDate ? formatDay(selectedDate) : 'Select a date'}
+                  </Typography>
+                </Box>
+              )}
+              
+              {viewMode === 'itinerary' && (
+                <Button
+                  variant="contained"
+                  color="primary"
+                  startIcon={<AddIcon />}
+                  onClick={handleAddExperience}
                   size="small"
-                  sx={{ 
-                    ml: 1,
-                    color: 'text.primary',
-                    '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.05)' }
+                  sx={{
+                    backgroundImage: 'linear-gradient(90deg, #4776E6 0%, #8E54E9 100%)',
+                    '&:hover': {
+                      backgroundImage: 'linear-gradient(90deg, #8E54E9 0%, #4776E6 100%)'
+                    }
                   }}
                 >
-                  <NavigateNextIcon />
-                </IconButton>
-              </Box>
+                  Add Experience
+                </Button>
+              )}
+              
+              {viewMode === 'calendar' && (
+                <Box sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center',
+                  width: { xs: '100%', sm: 'auto' }
+                }}>
+                  <IconButton 
+                    onClick={handlePrevDate}
+                    disabled={!selectedDate || !allDates.length || selectedDate.toDateString() === allDates[0]?.toDateString()}
+                    size="small"
+                    sx={{ 
+                      mr: 1,
+                      color: 'text.primary',
+                      '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.05)' }
+                    }}
+                  >
+                    <NavigateBeforeIcon />
+                  </IconButton>
+                  
+                  <Typography 
+                    variant="subtitle1" 
+                    sx={{ 
+                      mx: 1, 
+                      fontWeight: 'medium',
+                      fontSize: { xs: '0.9rem', sm: '1rem' },
+                      flex: 1,
+                      textAlign: { xs: 'center', sm: 'left' },
+                      color: 'text.primary'
+                    }}
+                  >
+                    {selectedDate ? formatDay(selectedDate) : 'Select a date'}
+                  </Typography>
+                  
+                  <IconButton 
+                    onClick={handleNextDate}
+                    disabled={!selectedDate || !allDates.length || selectedDate.toDateString() === allDates[allDates.length - 1]?.toDateString()}
+                    size="small"
+                    sx={{ 
+                      ml: 1,
+                      color: 'text.primary',
+                      '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.05)' }
+                    }}
+                  >
+                    <NavigateNextIcon />
+                  </IconButton>
+                </Box>
+              )}
             </Box>
             
-            <Box sx={{ 
-              overflowX: 'hidden',
-              overflowY: 'auto',
-              maxHeight: { xs: '50vh', sm: '60vh' },
-              py: 1,
-              px: 0.5,
-              '&::-webkit-scrollbar': { width: 8, height: 8 },
-              '&::-webkit-scrollbar-track': { bgcolor: 'rgba(0, 0, 0, 0.1)' },
-              '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(255, 255, 255, 0.1)', borderRadius: 4 }
-            }}>
-              <Grid container spacing={2}>
-                {allDates.map((date, index) => {
-                  const dateStr = date.toDateString();
-                  const dayEvents = eventsByDate[dateStr] || [];
-                  const isToday = date.toDateString() === today.toDateString();
-                  const isSelected = isSelectedDate(date);
-                  
-                  // Sort events by start time
-                  const sortedEvents = [...dayEvents].sort((a, b) => a.start - b.start);
-                  
-                  return (
-                    <Grid item xs={12} sm={6} md={4} lg={3} key={dateStr}>
-                      <Paper
-                        elevation={0}
-                        onClick={() => setSelectedDate(date)}
-                        sx={{
-                          height: 180,
-                          display: 'flex',
-                          flexDirection: 'column',
-                          cursor: 'pointer',
-                          border: '1px solid',
-                          borderColor: isSelected ? 'primary.main' : isToday ? 'warning.main' : 'rgba(255, 255, 255, 0.1)',
-                          background: isSelected ? 'rgba(71, 118, 230, 0.1)' : isToday ? 'rgba(237, 108, 2, 0.1)' : 'rgba(0, 0, 0, 0.6)',
-                          backdropFilter: 'blur(10px)',
-                          opacity: 0.95,
-                          '&:hover': {
-                            opacity: 1,
-                            borderColor: isSelected ? 'primary.main' : isToday ? 'warning.main' : 'rgba(255, 255, 255, 0.3)',
-                            background: isSelected ? 'rgba(71, 118, 230, 0.2)' : isToday ? 'rgba(237, 108, 2, 0.2)' : 'rgba(255, 255, 255, 0.05)'
-                          },
-                          overflow: 'hidden'
-                        }}
-                      >
-                        <Box sx={{ 
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          p: 1,
-                          borderBottom: '1px solid',
-                          borderColor: 'rgba(255, 255, 255, 0.1)',
-                          background: isSelected ? 'rgba(71, 118, 230, 0.2)' : isToday ? 'rgba(237, 108, 2, 0.2)' : 'rgba(0, 0, 0, 0.4)'
-                        }}>
-                          <Box>
-                            <Typography 
-                              variant="subtitle2" 
-                              sx={{ 
-                                color: 'text.primary',
-                                fontWeight: 'bold'
-                              }}
-                            >
-                              {date.toLocaleDateString('en-US', { weekday: 'short' })}
-                            </Typography>
-                            <Typography 
-                              variant="h5" 
-                              sx={{ 
-                                fontWeight: 'medium',
-                                color: 'text.primary'
-                              }}
-                            >
-                              {date.getDate()}
-                            </Typography>
-                          </Box>
-                          <Typography 
-                            variant="caption" 
-                            sx={{ 
-                              color: 'text.secondary',
-                              fontWeight: 'medium'
-                            }}
-                          >
-                            {date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-                          </Typography>
-                        </Box>
-                        
-                        <Box sx={{ 
-                          flex: 1, 
-                          overflowY: 'auto', 
-                          p: 1,
-                          '&::-webkit-scrollbar': { width: 4 },
-                          '&::-webkit-scrollbar-track': { bgcolor: 'rgba(0, 0, 0, 0.1)' },
-                          '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(255, 255, 255, 0.1)', borderRadius: 2 }
-                        }}>
-                          {sortedEvents.length > 0 ? (
-                            sortedEvents.slice(0, 4).map((event, idx) => (
-                              <Box
-                                key={event.id || idx}
-                                sx={{
-                                  p: 0.5,
-                                  mb: 0.5,
-                                  borderRadius: 1,
-                                  fontSize: '0.75rem',
-                                  whiteSpace: 'nowrap',
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                  border: '1px solid',
-                                  borderColor: `${getExperienceTypeColor(event.resource?.type)}50`,
-                                  background: `${getExperienceTypeColor(event.resource?.type)}20`,
+            {viewMode === 'calendar' ? (
+              <Box sx={{ 
+                overflowX: 'hidden',
+                overflowY: 'auto',
+                maxHeight: { xs: '50vh', sm: '60vh' },
+                py: 1,
+                px: 0.5,
+                '&::-webkit-scrollbar': { width: 8, height: 8 },
+                '&::-webkit-scrollbar-track': { bgcolor: 'rgba(0, 0, 0, 0.1)' },
+                '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(255, 255, 255, 0.1)', borderRadius: 4 }
+              }}>
+                <Grid container spacing={2}>
+                  {allDates.map((date, index) => {
+                    const dateStr = date.toDateString();
+                    const dayEvents = eventsByDate[dateStr] || [];
+                    const isToday = date.toDateString() === today.toDateString();
+                    const isSelected = isSelectedDate(date);
+                    
+                    // Sort events by start time
+                    const sortedEvents = [...dayEvents].sort((a, b) => a.start - b.start);
+                    
+                    return (
+                      <Grid item xs={12} sm={6} md={4} lg={3} key={dateStr}>
+                        <Paper
+                          elevation={0}
+                          onClick={() => handleDateSelect(date)}
+                          sx={{
+                            height: 180,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            cursor: 'pointer',
+                            border: '1px solid',
+                            borderColor: isSelected ? 'primary.main' : isToday ? 'warning.main' : 'rgba(255, 255, 255, 0.1)',
+                            background: isSelected ? 'rgba(71, 118, 230, 0.1)' : isToday ? 'rgba(237, 108, 2, 0.1)' : 'rgba(0, 0, 0, 0.6)',
+                            backdropFilter: 'blur(10px)',
+                            opacity: 0.95,
+                            '&:hover': {
+                              opacity: 1,
+                              borderColor: isSelected ? 'primary.main' : isToday ? 'warning.main' : 'rgba(255, 255, 255, 0.3)',
+                              background: isSelected ? 'rgba(71, 118, 230, 0.2)' : isToday ? 'rgba(237, 108, 2, 0.2)' : 'rgba(255, 255, 255, 0.05)'
+                            },
+                            overflow: 'hidden'
+                          }}
+                        >
+                          <Box sx={{ 
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            p: 1,
+                            borderBottom: '1px solid',
+                            borderColor: 'rgba(255, 255, 255, 0.1)',
+                            background: isSelected ? 'rgba(71, 118, 230, 0.2)' : isToday ? 'rgba(237, 108, 2, 0.2)' : 'rgba(0, 0, 0, 0.4)'
+                          }}>
+                            <Box>
+                              <Typography 
+                                variant="subtitle2" 
+                                sx={{ 
                                   color: 'text.primary',
-                                  display: 'flex',
-                                  alignItems: 'center'
+                                  fontWeight: 'bold'
                                 }}
                               >
-                                <Box 
-                                  component="span" 
-                                  sx={{ 
-                                    minWidth: 35, 
-                                    fontSize: '0.65rem', 
-                                    color: 'text.secondary', 
-                                    mr: 0.5,
-                                    display: 'inline-block' 
-                                  }}
-                                >
-                                  {event.start ? formatTime(event.start).replace(' ', '').toLowerCase() : ''}
-                                </Box>
-                                <Typography variant="inherit" noWrap>
-                                  {event.title}
-                                </Typography>
-                              </Box>
-                            ))
-                          ) : (
-                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center', pt: 2 }}>
-                              No events
-                            </Typography>
-                          )}
-                          
-                          {sortedEvents.length > 4 && (
+                                {date.toLocaleDateString('en-US', { weekday: 'short' })}
+                              </Typography>
+                              <Typography 
+                                variant="h5" 
+                                sx={{ 
+                                  fontWeight: 'medium',
+                                  color: 'text.primary'
+                                }}
+                              >
+                                {date.getDate()}
+                              </Typography>
+                            </Box>
                             <Typography 
                               variant="caption" 
-                              color="primary" 
                               sx={{ 
-                                display: 'block', 
-                                textAlign: 'center', 
-                                mt: 0.5,
-                                fontWeight: 'medium' 
+                                color: 'text.secondary',
+                                fontWeight: 'medium'
                               }}
                             >
-                              +{sortedEvents.length - 4} more events
+                              {date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
                             </Typography>
-                          )}
-                        </Box>
-                      </Paper>
-                    </Grid>
-                  );
-                })}
-              </Grid>
-            </Box>
-          </CardContent>
-        </Card>
-        
-        {/* Selected Date Details */}
-        <Card 
-          elevation={0} 
-          sx={{ 
-            borderRadius: 2,
-            position: 'relative',
-            background: 'rgba(0, 0, 0, 0.6)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            '&:hover .add-button': {
-              opacity: 1
-            }
-          }}
-          onMouseEnter={() => setShowAddButton(true)}
-          onMouseLeave={() => setShowAddButton(false)}
-        >
-          <CardContent>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', color: 'text.primary' }}>
-                <ActivityIcon sx={{ mr: 1 }} />
-                {selectedDate ? `Details for ${formatDate(selectedDate)}` : 'Select a date to view details'}
-              </Typography>
-              
-              <Button
-                variant="contained"
-                color="primary"
-                startIcon={<AddIcon />}
-                onClick={handleAddExperience}
-                size="small"
-                className="add-button"
-                sx={{
-                  backgroundImage: 'linear-gradient(90deg, #4776E6 0%, #8E54E9 100%)',
-                  '&:hover': {
-                    backgroundImage: 'linear-gradient(90deg, #8E54E9 0%, #4776E6 100%)'
-                  }
-                }}
-              >
-                Add Experience
-              </Button>
-            </Box>
-            
-            <Divider sx={{ mb: 2, borderColor: 'rgba(255, 255, 255, 0.1)' }} />
-            
-            {selectedDate ? (
-              <>
-                {eventsByDate[selectedDate.toDateString()]?.length > 0 ? (
-                  <List sx={{ minHeight: 200 }}>
-                    {eventsByDate[selectedDate.toDateString()].map((event, index) => (
-                      <ListItem
-                        key={event.id}
-                        secondaryAction={
-                          <Button
-                            variant="outlined"
-                            size="small"
-                            onClick={() => handleSelectExperience(event.id)}
-                            sx={{
-                              borderColor: 'rgba(255, 255, 255, 0.2)',
-                              color: 'text.primary',
-                              '&:hover': {
-                                borderColor: 'rgba(255, 255, 255, 0.3)',
-                                backgroundColor: 'rgba(255, 255, 255, 0.05)'
-                              }
-                            }}
-                          >
-                            Details
-                          </Button>
-                        }
-                        sx={{
-                          mb: 1,
-                          border: '1px solid rgba(255, 255, 255, 0.1)',
-                          borderRadius: 1,
-                          '&:hover': { 
-                            backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                            borderColor: 'rgba(255, 255, 255, 0.2)'
-                          },
-                        }}
-                      >
-                        <ListItemAvatar>
-                          <Avatar
-                            sx={{ 
-                              bgcolor: getExperienceTypeColor(event.resource?.type),
-                              background: `linear-gradient(135deg, ${getExperienceTypeColor(event.resource?.type)}80 0%, ${getExperienceTypeColor(event.resource?.type)} 100%)`
-                            }}
-                          >
-                            {getExperienceIcon(event.resource?.type)}
-                          </Avatar>
-                        </ListItemAvatar>
-                        <ListItemText
-                          primary={
-                            <Typography variant="subtitle1" fontWeight="medium" color="text.primary">
-                              {event.title}
-                            </Typography>
-                          }
-                          secondary={
-                            <React.Fragment>
-                              <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
-                                <AccessTimeIcon sx={{ fontSize: 'small', mr: 0.5, color: 'text.secondary' }} />
-                                <Typography
-                                  component="span"
-                                  variant="body2"
-                                  color="text.secondary"
-                                  sx={{ mr: 1 }}
+                          </Box>
+                          
+                          <Box sx={{ 
+                            flex: 1, 
+                            overflowY: 'auto', 
+                            p: 1,
+                            '&::-webkit-scrollbar': { width: 4 },
+                            '&::-webkit-scrollbar-track': { bgcolor: 'rgba(0, 0, 0, 0.1)' },
+                            '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(255, 255, 255, 0.1)', borderRadius: 2 }
+                          }}>
+                            {sortedEvents.length > 0 ? (
+                              sortedEvents.slice(0, 4).map((event, idx) => (
+                                <Box
+                                  key={event.id || idx}
+                                  sx={{
+                                    p: 0.5,
+                                    mb: 0.5,
+                                    borderRadius: 1,
+                                    fontSize: '0.75rem',
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    border: '1px solid',
+                                    borderColor: `${getExperienceTypeColor(event.resource?.type)}50`,
+                                    background: `${getExperienceTypeColor(event.resource?.type)}20`,
+                                    color: 'text.primary',
+                                    display: 'flex',
+                                    alignItems: 'center'
+                                  }}
                                 >
-                                  {formatTime(event.start)} - {formatTime(event.end)}
-                                </Typography>
-                              </Box>
-                              {event.resource?.location && (
-                                <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
-                                  <LocationOnIcon sx={{ fontSize: 'small', mr: 0.5, color: 'text.secondary' }} />
-                                  <Typography variant="body2" color="text.secondary">
-                                    {event.resource.location}
+                                  <Box 
+                                    component="span" 
+                                    sx={{ 
+                                      minWidth: 35, 
+                                      fontSize: '0.65rem', 
+                                      color: 'text.secondary', 
+                                      mr: 0.5,
+                                      display: 'inline-block' 
+                                    }}
+                                  >
+                                    {event.start ? formatTime(event.start).replace(' ', '').toLowerCase() : ''}
+                                  </Box>
+                                  <Typography variant="inherit" noWrap>
+                                    {event.title}
                                   </Typography>
                                 </Box>
-                              )}
-                              {event.resource?.guests && event.resource.guests.length > 0 && (
-                                <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
-                                  <Typography variant="body2" color="text.secondary">
-                                    Guests: {event.resource.guests.join(', ')}
-                                  </Typography>
-                                </Box>
-                              )}
-                            </React.Fragment>
-                          }
-                        />
-                      </ListItem>
-                    ))}
-                  </List>
+                              ))
+                            ) : (
+                              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center', pt: 2 }}>
+                                No events
+                              </Typography>
+                            )}
+                            
+                            {sortedEvents.length > 4 && (
+                              <Typography 
+                                variant="caption" 
+                                color="primary" 
+                                sx={{ 
+                                  display: 'block', 
+                                  textAlign: 'center', 
+                                  mt: 0.5,
+                                  fontWeight: 'medium' 
+                                }}
+                              >
+                                +{sortedEvents.length - 4} more events
+                              </Typography>
+                            )}
+                          </Box>
+                        </Paper>
+                      </Grid>
+                    );
+                  })}
+                </Grid>
+              </Box>
+            ) : (
+              <Box>
+                {selectedDate && eventsByDate[selectedDate.toDateString()]?.length > 0 ? (
+                  <Box>
+                    <Box sx={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      mb: 1,
+                      px: 1
+                    }}>
+                      <Typography variant="subtitle1" color="primary.main" sx={{ fontWeight: 'medium' }}>
+                        Daily Itinerary
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+                        ({eventsByDate[selectedDate.toDateString()].length} events)
+                      </Typography>
+                    </Box>
+                    
+                    <Divider sx={{ mb: 3, borderColor: 'rgba(255, 255, 255, 0.1)' }} />
+                    
+                    <Box sx={{ 
+                      maxHeight: { xs: '60vh', sm: '70vh' }, 
+                      overflowY: 'auto', 
+                      px: 2,
+                      '&::-webkit-scrollbar': { width: 8, height: 8 },
+                      '&::-webkit-scrollbar-track': { bgcolor: 'rgba(0, 0, 0, 0.1)' },
+                      '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(255, 255, 255, 0.1)', borderRadius: 4 }
+                    }}>
+                      <TimelineView 
+                        events={eventsByDate[selectedDate.toDateString()]} 
+                        onViewExperience={handleViewExperience}
+                        getExperienceTypeColor={getExperienceTypeColor}
+                        getExperienceIcon={getExperienceIcon}
+                        formatTime={formatTime}
+                      />
+                    </Box>
+                  </Box>
                 ) : (
                   <Box
                     sx={{
@@ -894,13 +1102,16 @@ const TripCalendarView = () => {
                       flexDirection: 'column',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      py: 4,
+                      py: 6,
                       borderRadius: 1
                     }}
                   >
-                    <CalendarTodayIcon sx={{ fontSize: 40, color: 'text.disabled', mb: 2 }} />
-                    <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
+                    <CalendarTodayIcon sx={{ fontSize: 60, color: 'text.disabled', mb: 3 }} />
+                    <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
                       No experiences scheduled for this day
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3, maxWidth: 500, textAlign: 'center' }}>
+                      Start building your itinerary by adding experiences for {formatDate(selectedDate)}
                     </Typography>
                     <Button
                       variant="contained"
@@ -917,27 +1128,147 @@ const TripCalendarView = () => {
                     </Button>
                   </Box>
                 )}
-              </>
-            ) : (
-              <Box
-                sx={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  py: 4,
-                  borderRadius: 1
-                }}
-              >
-                <CalendarTodayIcon sx={{ fontSize: 40, color: 'text.disabled', mb: 2 }} />
-                <Typography variant="body1" color="text.secondary">
-                  Select a date from the calendar above to view your schedule
-                </Typography>
               </Box>
             )}
           </CardContent>
         </Card>
       </Box>
+      
+      {/* Experience Details Dialog */}
+      <Dialog
+        open={openExperienceDialog}
+        onClose={() => setOpenExperienceDialog(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            backgroundColor: "rgba(0, 0, 0, 0.6)",
+            backdropFilter: "blur(10px)",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.5)",
+          },
+        }}
+      >
+        {selectedExperience && (
+          <>
+            <DialogTitle sx={{ display: "flex", alignItems: "center" }}>
+              <Avatar
+                sx={{
+                  mr: 1,
+                  bgcolor: getExperienceTypeColor(selectedExperience.type),
+                  background: `linear-gradient(135deg, ${getExperienceTypeColor(selectedExperience.type)}80 0%, ${getExperienceTypeColor(selectedExperience.type)} 100%)`
+                }}
+              >
+                {getExperienceIcon(selectedExperience.type)}
+              </Avatar>
+              <Typography variant="h6" color="text.primary">
+                {selectedExperience.title || selectedExperience.type}
+              </Typography>
+            </DialogTitle>
+            <DialogContent dividers>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="subtitle2" color="text.secondary">
+                    <TimeIcon
+                      fontSize="small"
+                      sx={{ mr: 0.5, verticalAlign: "middle" }}
+                    />
+                    Date & Time
+                  </Typography>
+                  <Typography variant="body1" paragraph color="text.primary">
+                    {formatDate(selectedExperience.date)}
+                    {selectedExperience.startTime &&
+                      ` at ${formatTime(selectedExperience.startTime)}`}
+                    {selectedExperience.endTime &&
+                      ` - ${formatTime(selectedExperience.endTime)}`}
+                  </Typography>
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="subtitle2" color="text.secondary">
+                    <PlaceIcon
+                      fontSize="small"
+                      sx={{ mr: 0.5, verticalAlign: "middle" }}
+                    />
+                    Location
+                  </Typography>
+                  <Typography variant="body1" paragraph color="text.primary">
+                    {selectedExperience.location || "Location not specified"}
+                  </Typography>
+                </Grid>
+
+                <Grid item xs={12}>
+                  <Typography variant="subtitle2" color="text.secondary">
+                    <GroupIcon
+                      fontSize="small"
+                      sx={{ mr: 0.5, verticalAlign: "middle" }}
+                    />
+                    Participating Guests
+                  </Typography>
+                  <Box sx={{ mt: 1 }}>
+                    {selectedExperience.guests &&
+                    selectedExperience.guests.length > 0 ? (
+                      <Stack
+                        direction="row"
+                        spacing={1}
+                        flexWrap="wrap"
+                        useFlexGap
+                      >
+                        {selectedExperience.guests.map((guest, idx) => (
+                          <Chip
+                            key={idx}
+                            avatar={
+                              <Avatar sx={{ bgcolor: stringToColor(guest) }}>
+                                {guest.charAt(0)}
+                              </Avatar>
+                            }
+                            label={guest}
+                            size="small"
+                            sx={{ mb: 1 }}
+                          />
+                        ))}
+                      </Stack>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">
+                        No guests specified
+                      </Typography>
+                    )}
+                  </Box>
+                </Grid>
+
+                {selectedExperience.details && (
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      <NotesIcon
+                        fontSize="small"
+                        sx={{ mr: 0.5, verticalAlign: "middle" }}
+                      />
+                      Details
+                    </Typography>
+                    <Typography variant="body1" paragraph color="text.primary">
+                      {selectedExperience.details}
+                    </Typography>
+                  </Grid>
+                )}
+              </Grid>
+            </DialogContent>
+            <DialogActions>
+              <Button
+                onClick={() => setOpenExperienceDialog(false)}
+                color="primary"
+                sx={{
+                  color: 'text.primary',
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.05)'
+                  }
+                }}
+              >
+                Close
+              </Button>
+            </DialogActions>
+          </>
+        )}
+      </Dialog>
     </Box>
   );
 };

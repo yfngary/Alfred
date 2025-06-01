@@ -93,6 +93,8 @@ import {
   HomeWork as HomeWorkIcon,
   LocationCity as ResortIcon,
   SmartToy as SmartToyIcon,
+  WbSunny as SunnyIcon,
+  PhotoCamera as CameraIcon,
 } from "@mui/icons-material";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import { useTrips } from "../context/TripContext";
@@ -409,7 +411,7 @@ const TripHeader = ({
             alignSelf: "flex-start",
           }}
         >
-          <Button
+          {/* <Button
             variant="contained"
             startIcon={<CalendarMonthIcon />}
             onClick={navigateToCalendarView}
@@ -427,7 +429,7 @@ const TripHeader = ({
             }}
           >
             Calendar View
-          </Button>
+          </Button> */}
 
           {/* Delete Trip button */}
           {canDelete && (
@@ -2810,25 +2812,12 @@ export default function TripDashboard({ id }) {
                                       backgroundColor:
                                         "rgba(255, 255, 255, 0.05)",
                                     },
+                                    minWidth: '32px',
+                                    px: 1,
                                   }}
                                 >
-                                  Details
+                                  +
                                 </Button>
-                                <IconButton
-                                  size="small"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteExperience(exp._id);
-                                  }}
-                                  sx={{
-                                    color: "#ef473a",
-                                    "&:hover": {
-                                      backgroundColor: "rgba(239, 71, 58, 0.1)",
-                                    },
-                                  }}
-                                >
-                                  <DeleteIcon fontSize="small" />
-                                </IconButton>
                               </Box>
                             }
                             sx={{
@@ -3074,9 +3063,11 @@ export default function TripDashboard({ id }) {
                                       backgroundColor:
                                         "rgba(255, 255, 255, 0.05)",
                                     },
+                                    minWidth: '32px',
+                                    px: 1,
                                   }}
                                 >
-                                  Details
+                                  +
                                 </Button>
                               </Box>
                             }
@@ -3258,24 +3249,24 @@ export default function TripDashboard({ id }) {
                   count: 0,
                 },
                 {
-                  icon: <BudgetIcon />,
-                  title: "Budget",
-                  color: "#f44336",
-                  path: `/trips/${tripId}/budget`,
+                  icon: <SunnyIcon />,
+                  title: "Weather",
+                  color: "#ff9800",
+                  path: `/trips/${tripId}/weather`,
                   count: 0,
                 },
                 {
                   icon: <SmartToyIcon />,
                   title: "Alfred Planner",
-                  color: "#ff9800",
+                  color: "#f44336",
                   path: `/trips/${tripId}/planner`,
                   count: 0,
                 },
                 {
-                  icon: <NotesIcon />,
-                  title: "Notes",
+                  icon: <CameraIcon />,
+                  title: "Gallery",
                   color: "#2196f3",
-                  path: `/trips/${tripId}/notes`,
+                  path: `/trips/${tripId}/gallery`,
                   count: 0,
                 },
                 {

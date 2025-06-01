@@ -72,6 +72,19 @@ const LodgingSchema = new mongoose.Schema({
   assignedGuests: [{ type: String }] // Store guest names as strings (consistent with experiences)
 });
 
+// Add a schema for Packing List Items
+const packingItemSchema = new mongoose.Schema({
+  id: { type: String, required: true }, // Using the frontend generated ID for now
+  name: { type: String, required: true },
+  category: { type: String, default: 'Miscellaneous' },
+  quantity: { type: Number, default: 1 },
+  assignedTo: { type: String, default: 'Everyone' },
+  notes: { type: String, default: '' },
+  packed: { type: Boolean, default: false },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
+});
+
 const TripSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true }, // Trip owner
   tripName: String,
@@ -82,6 +95,7 @@ const TripSchema = new mongoose.Schema({
   guests: [GuestSchema],
   guestRelationships: [GuestRelationshipSchema], // Add guest relationships
   experiences: [experienceSchema],
+  packingItems: [packingItemSchema], // Add the packing items array
   chat: { type: mongoose.Schema.Types.ObjectId, ref: "Chat", required: true },
   // Add access control fields
   collaborators: [{

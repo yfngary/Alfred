@@ -3,22 +3,16 @@
   "functions": {
     "api/index.js": {
       "maxDuration": 30
+    },
+    "api/minimal.js": {
+      "maxDuration": 10
     }
   },
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "build"
-      }
-    },
-    {
-      "src": "api/index.js",
-      "use": "@vercel/node"
-    }
-  ],
   "routes": [
+    {
+      "src": "/api/minimal",
+      "dest": "/api/minimal.js"
+    },
     {
       "src": "/api/(.*)",
       "dest": "/api/index.js"
@@ -33,5 +27,6 @@
   ],
   "env": {
     "NODE_ENV": "production"
-  }
+  },
+  "buildCommand": "npm run build"
 } 

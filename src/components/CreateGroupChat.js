@@ -3,11 +3,14 @@ import { useParams, useNavigate, useLocation } from "react-router-dom";
 import io from "socket.io-client";
 import { Paper, Typography, Box, TextField, Button, CircularProgress, Avatar } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
+import { API_BASE_URL } from '../utils/apiConfig';
 
 // Create the socket outside the component but only initialize it once
 let socket;
 if (!socket) {
-  socket = io("http://localhost:5001"); // WebSocket Connection
+  // Use the same domain as the frontend if API_BASE_URL is empty
+  const socketUrl = API_BASE_URL || window.location.origin;
+  socket = io(socketUrl); // WebSocket Connection
 }
 
 export default function ChatPage() {
@@ -50,7 +53,7 @@ export default function ChatPage() {
         console.log("Fetching trip data for ID:", tripId);
         
         // Get the trip details including its chat ID
-        const response = await fetch(`http://localhost:5001/api/trips/${tripId}`, {
+        const response = await fetch(`${API_BASE_URL}/api/trips/${tripId}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         
@@ -158,7 +161,7 @@ export default function ChatPage() {
       console.log("Fetching messages for chat:", chatId);
       
       const response = await fetch(
-        `http://localhost:5001/api/chat/${chatId}/messages`,
+        `${API_BASE_URL}/api/chat/${chatId}/messages`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }

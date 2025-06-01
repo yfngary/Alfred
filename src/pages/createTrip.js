@@ -17,6 +17,7 @@ import {
   CircularProgress,
 } from "@mui/material";
 import { useTrips } from '../context/TripContext';
+import { apiHelpers } from '../utils/apiConfig';
 
 const steps = [
   "Trip Details",
@@ -92,14 +93,15 @@ const CreateTrip = () => {
             }))
           }))
         };
-        const response = await fetch("http://localhost:5001/api/trips", {
-          method: "POST",
-          headers: { 
-            "Content-Type": "application/json", 
-            Authorization: `Bearer ${token}`,
-          },
-          credentials: "include",
-          body: JSON.stringify(tripData),
+        const response = await apiHelpers.post("/api/trips", {
+          name: tripData.name,
+          destination: tripData.destination,
+          startDate: tripData.startDate,
+          endDate: tripData.endDate,
+          budget: Number(tripData.budget) || 0,
+          description: tripData.description,
+          visibility: tripData.visibility,
+          activities: tripData.activities
         });
 
         if (response.ok) {
@@ -110,14 +112,7 @@ const CreateTrip = () => {
           if (formData.selectedInvitees && formData.selectedInvitees.length > 0 && formData.guestsToInvite) {
             try {
               // Get or generate an invite code for the trip
-              const inviteCodeResponse = await fetch(`http://localhost:5001/api/trips/${data.trip._id}/invite-code`, {
-                method: "POST",
-                headers: { 
-                  "Content-Type": "application/json", 
-                  Authorization: `Bearer ${token}`,
-                },
-                credentials: "include",
-              });
+              const inviteCodeResponse = await apiHelpers.post(`/api/trips/${data.trip._id}/invite-code`);
               
               if (!inviteCodeResponse.ok) {
                 console.error("❌ Failed to get invite code:", await inviteCodeResponse.text());
@@ -146,14 +141,12 @@ const CreateTrip = () => {
               };
               
               // Send invitations for the newly created trip
-              const inviteResponse = await fetch(`http://localhost:5001/api/trips/${data.trip._id}/send-invitations`, {
-                method: "POST",
-                headers: { 
-                  "Content-Type": "application/json", 
-                  Authorization: `Bearer ${token}`,
-                },
-                credentials: "include",
-                body: JSON.stringify(invitationData),
+              const inviteResponse = await apiHelpers.post(`/api/trips/${data.trip._id}/send-invitations`, {
+                guests: formData.guestsToInvite,
+                inviteMethod: formData.inviteMethod,
+                customMessage: enhancedMessage,
+                inviteCode: inviteCode,
+                joinLink: joinLink
               });
               
               if (!inviteResponse.ok) {
