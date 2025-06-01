@@ -30,6 +30,7 @@ async function connectToDatabase() {
       throw new Error('MONGO_URI environment variable is not set');
     }
 
+    console.log('Attempting MongoDB connection...');
     await mongoose.connect(process.env.MONGO_URI, opts);
     isConnected = true;
     console.log('✅ MongoDB Connected successfully');
@@ -39,10 +40,31 @@ async function connectToDatabase() {
       isConnected = false;
     });
 
+    mongoose.connection.on('error', (err) => {
+      console.error('❌ MongoDB connection error:', err);
+      isConnected = false;
+    });
+
     return mongoose.connection;
   } catch (error) {
     console.error('❌ MongoDB Connection Error:', error.message);
     isConnected = false;
+    
+    // Provide more specific error messages for common issues
+    if (error.message.includes('IP whitelist') || error.message.includes('not allowed to access') || error.message.includes('Could not connect to any servers')) {
+      const detailedError = new Error(`MongoDB Atlas Connection Failed: ${error.message}. 
+
+Common solutions:
+1. Add 0.0.0.0/0 to your MongoDB Atlas IP whitelist for Vercel deployments
+2. Check that your cluster is not paused
+3. Verify your MONGO_URI connection string is correct
+4. Ensure your database user has proper permissions
+
+Current error: ${error.message}`);
+      detailedError.originalError = error;
+      throw detailedError;
+    }
+    
     throw error;
   }
 }

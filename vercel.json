@@ -6,9 +6,16 @@
     },
     "api/minimal.js": {
       "maxDuration": 10
+    },
+    "api/test-db.js": {
+      "maxDuration": 15
     }
   },
   "routes": [
+    {
+      "src": "/api/test-db",
+      "dest": "/api/test-db.js"
+    },
     {
       "src": "/api/minimal",
       "dest": "/api/minimal.js"
